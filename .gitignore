@@ -1,0 +1,8 @@
+__pycache__/
+node_modules/
+macpics.json
+*.tap
+*.tzx
+*.z80
+*.sna
+*.zip

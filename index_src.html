@@ -1,0 +1,1023 @@
+<title>Hobbit Text Game Spectrum</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,700;1,400&family=Alegreya+Sans:wght@400;500;700&family=Courier+Prime:wght@400;700&display=swap">
+<style>
+  :root {
+    --paper: #000000;
+    --surface: #101010;
+    --ink: #FFFFFF;
+    --muted: #A9ADA4;
+    --rule: #262626;
+    --rule-strong: #3A3A3A;
+    --door: #5CC08C;
+    --door-ink: #06110A;
+    --door-soft: #12261A;
+    --gold: #D8B44A;
+    --danger: #E07A6A;
+    --cmd-bg: #0C0C0C;
+    --shadow: 0 10px 30px rgba(0, 0, 0, .7);
+    --serif: 'Alegreya', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+    --sans: 'Alegreya Sans', 'Gill Sans', 'Segoe UI', system-ui, sans-serif;
+    --mono: 'Courier Prime', 'Courier New', Courier, monospace;
+    --fs: 17px;
+    color-scheme: dark;
+  }
+  /* Black on white by request, in every viewer theme. */
+
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 15px; overflow: hidden; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  #app { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--paper); }
+
+  /* ---------- header ---------- */
+  header.bar {
+    flex: none; display: flex; align-items: center; gap: 10px;
+    padding: 6px 16px; padding-top: calc(6px + env(safe-area-inset-top, 0px));
+    border-bottom: 1px solid var(--rule);
+  }
+  header.bar h1 { margin: 0; font: 700 18px/1.2 var(--serif); letter-spacing: .01em; }
+  header.bar .sub { font-size: 12px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+  .spacer { flex: 1; }
+  .status { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); letter-spacing: .04em; }
+  .status i { width: 8px; height: 8px; border-radius: 50%; background: var(--rule-strong); }
+  .status[data-state="waiting"] i { background: var(--door); }
+  .status[data-state="running"] i { background: var(--gold); }
+  .status[data-state="dead"] i { background: var(--danger); }
+  .iconbtn { border: 1px solid var(--rule); background: transparent; border-radius: 6px; width: 34px; height: 30px; display: inline-grid; place-items: center; color: var(--ink); }
+  .iconbtn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+  .iconbtn[aria-pressed="true"] { background: var(--door-soft); border-color: var(--door); }
+
+  /* ---------- Spectrum screen panel ---------- */
+  #screenPanel { flex: none; display: flex; justify-content: center; padding: 10px 16px; border-bottom: 1px solid var(--rule); background: var(--cmd-bg); }
+  #screenWrap { width: 100%; max-width: 480px; padding: 8px; background: #d7d7d7; border-radius: 2px; }
+  #screen { display: block; width: 100%; aspect-ratio: 4 / 3; image-rendering: pixelated; image-rendering: crisp-edges; background: #000; }
+
+  /* ---------- transcript ---------- */
+  #log { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; container-type: inline-size; }
+  #logInner { max-width: 62ch; margin: 0 auto; padding: 18px 16px 24px; font-family: var(--serif); font-size: var(--fs); line-height: 1.5; }
+  .out { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0 0 10px; }
+  .out .cap { color: var(--muted); font-style: italic; }
+  .cmd { font-family: var(--mono); font-size: calc(var(--fs) * .92); color: var(--door); margin: 18px 0 8px; padding-top: 12px; border-top: 1px dashed var(--rule-strong); }
+  .cmd::before { content: '> '; color: var(--muted); }
+  .cmd.auto { color: var(--muted); font-style: italic; }
+  .sys { font-family: var(--sans); font-size: 13.5px; color: var(--muted); letter-spacing: .02em; margin: 8px 0; }
+  .divider { display: flex; align-items: center; gap: 10px; margin: 24px 0 14px; font-family: var(--sans); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--rule-strong); }
+  /* pictures run edge to edge (capped at 4x on wide screens), breaking out of the text column */
+  figure.pic { --picw: min(100cqw, 1024px); width: var(--picw); margin: 10px 0 14px calc(50% - var(--picw) / 2); padding: 6px 0; max-width: none; }
+  figure.pic img { display: block; width: 100%; height: auto; image-rendering: pixelated; image-rendering: crisp-edges; }
+  /* the Macintosh illustrations are 240x128 pixel art, scaled crisply like the Spectrum's, up to 4x */
+  figure.pic.mac { --picw: min(100cqw, 960px); padding: 0; background: none; }
+  @supports not (width: 1cqw) { figure.pic { --picw: 100%; margin-left: 0; } }
+  .dead { border: 1px solid var(--danger); color: var(--danger); padding: 10px 12px; border-radius: 4px; font-family: var(--sans); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+  .dead button { background: var(--danger); color: #fff; border: 0; border-radius: 4px; padding: 6px 12px; font-weight: 500; }
+  #logInner p { margin: 0 0 12px; }
+
+  /* ---------- loader (before a tape is loaded) ---------- */
+  #loader { max-width: 62ch; margin: 0 auto; padding: 22px 16px 32px; font-family: var(--serif); font-size: 17px; line-height: 1.5; }
+  #loader h2 { font: 700 26px/1.15 var(--serif); margin: 0 0 6px; text-wrap: balance; }
+  #loader .lede { color: var(--muted); font-style: italic; margin: 0 0 18px; }
+  #drop { border: 1.5px dashed var(--rule-strong); border-radius: 6px; padding: 22px 18px; text-align: center; background: var(--surface); transition: border-color .15s, background .15s; }
+  #drop.over { border-color: var(--door); background: var(--door-soft); }
+  #drop p { margin: 0 0 12px; font-family: var(--sans); }
+  #drop .formats { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+  .btn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--door); background: var(--door); color: var(--door-ink); border-radius: 6px; padding: 9px 16px; font-family: var(--sans); font-weight: 500; font-size: 15px; }
+  .btn.secondary { background: transparent; color: var(--door); }
+  .btn.quiet { background: transparent; color: var(--ink); border-color: var(--rule-strong); }
+  .btn.small { padding: 5px 10px; font-size: 13.5px; }
+  .btn.danger { border-color: var(--danger); color: var(--danger); background: transparent; }
+  .btn:disabled { opacity: .4; cursor: default; }
+  #loader ol { padding-left: 22px; margin: 16px 0; }
+  #loader li { margin: 4px 0; }
+  #loader .fine { font-family: var(--sans); font-size: 13.5px; color: var(--muted); }
+  #loader a { color: var(--door); }
+  .err { color: var(--danger); font-family: var(--sans); margin-top: 10px; }
+
+  /* ---------- dock ---------- */
+  #dock { flex: none; border-top: 1px solid var(--rule); background: var(--paper); padding: 8px 16px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 8px; }
+  .chiprow { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; min-height: 32px; align-items: center; }
+  .chiprow::-webkit-scrollbar { display: none; }
+  .chiprow .hint { flex: none; font-family: var(--sans); font-size: 12.5px; color: var(--muted); letter-spacing: .04em; padding-right: 4px; }
+  .chip.door { border-style: dashed; }
+  .chip.person { background: var(--door-soft); border-color: var(--door); color: var(--ink); }
+  .chip.carried { border-style: dotted; }
+  .chip.carried::before { content: '\2726\00a0'; color: var(--gold); font-size: 11px; }
+  .chip.back { font-family: var(--mono); font-weight: 700; padding-inline: 10px; }
+  .chip.subject { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .chip { flex: none; border: 1px solid var(--rule-strong); background: var(--surface); border-radius: 999px; padding: 5px 11px; font-family: var(--sans); font-size: 13.5px; font-weight: 500; color: var(--ink); min-height: 30px; }
+  .chip.dir { font-family: var(--mono); font-weight: 700; min-width: 40px; text-align: center; padding-inline: 8px; }
+  .chip:active { background: var(--door-soft); }
+  .chip .sep { display: inline-block; width: 1px; height: 18px; background: var(--rule-strong); }
+  .chipsep { flex: none; width: 1px; background: var(--rule-strong); margin: 4px 2px; }
+  #inputRow { display: flex; gap: 8px; align-items: stretch; }
+  #cmdInput { flex: 1; min-width: 0; border: 1px solid var(--rule-strong); border-radius: 6px; padding: 9px 12px; font-family: var(--mono); font-size: 16px; background: var(--surface); color: var(--ink); }
+  #cmdInput:focus { border-color: var(--door); outline: none; box-shadow: 0 0 0 3px var(--door-soft); }
+  #cmdInput::placeholder { color: var(--muted); font-family: var(--sans); }
+  #sendBtn { border: 0; background: var(--door); color: var(--door-ink); border-radius: 6px; padding: 0 16px; font-family: var(--sans); font-weight: 700; font-size: 15px; letter-spacing: .02em; }
+  #sendBtn:disabled { opacity: .45; cursor: default; }
+
+  /* ---------- drawer ---------- */
+  #scrim { position: fixed; inset: 0; background: rgba(10, 14, 10, .35); opacity: 0; pointer-events: none; transition: opacity .18s; }
+  #scrim.open { opacity: 1; pointer-events: auto; }
+  #drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(360px, 92vw); background: var(--surface); box-shadow: var(--shadow); transform: translateX(105%); transition: transform .22s ease; overflow-y: auto; padding: 16px 18px; padding-top: calc(16px + env(safe-area-inset-top, 0px)); padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); font-family: var(--sans); }
+  #drawer.open { transform: none; }
+  @media (prefers-reduced-motion: reduce) { #drawer, #scrim { transition: none; } }
+  #drawer h2 { font: 700 20px/1.2 var(--serif); margin: 0 0 14px; display: flex; align-items: center; }
+  #drawer h3 { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 20px 0 8px; font-weight: 700; }
+  .opt { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--rule); }
+  .opt .lbl { flex: 1; }
+  .opt small { display: block; color: var(--muted); font-size: 12.5px; }
+  .opt.wide { flex-wrap: wrap; } .opt.wide .lbl { flex-basis: 100%; }
+  .seg { display: inline-flex; border: 1px solid var(--rule-strong); border-radius: 6px; overflow: hidden; }
+  .seg button { border: 0; background: transparent; padding: 5px 10px; font-size: 13px; color: var(--ink); }
+  .seg button[aria-pressed="true"] { background: var(--door); color: var(--door-ink); }
+  .switch { position: relative; width: 42px; height: 24px; border-radius: 12px; background: var(--rule-strong); border: 0; flex: none; }
+  .switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .15s; }
+  .switch[aria-checked="true"] { background: var(--door); }
+  .switch[aria-checked="true"]::after { transform: translateX(18px); }
+  .slots { display: grid; grid-template-columns: 1fr; gap: 6px; }
+  .slot { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 6px; }
+  .slot .name { flex: 1; font-size: 13.5px; }
+  .slot .name small { display: block; color: var(--muted); font-size: 12px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  #drawer p.about { font-size: 13px; color: var(--muted); line-height: 1.45; }
+  #drawer p.about a { color: var(--door); }
+  .toast { position: fixed; left: 50%; bottom: calc(120px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: #000; padding: 8px 14px; border-radius: 6px; font-family: var(--sans); font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: 90vw; }
+  .toast.show { opacity: 1; }
+  input[type="file"] { display: none; }
+  /* ---------- hint sheet ---------- */
+  #hintScrim { position: fixed; inset: 0; background: rgba(0, 0, 0, .5); opacity: 0; pointer-events: none; transition: opacity .18s; }
+  #hintScrim.open { opacity: 1; pointer-events: auto; }
+  #hintSheet { position: fixed; left: 0; right: 0; bottom: 0; max-height: 78%; background: var(--surface); border-top: 1px solid var(--rule-strong); border-radius: 14px 14px 0 0; box-shadow: var(--shadow); display: flex; flex-direction: column; padding: 12px 16px; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); font-family: var(--sans); transform: translateY(105%); transition: transform .22s ease; }
+  #hintSheet.open { transform: none; }
+  @media (prefers-reduced-motion: reduce) { #hintSheet, #hintScrim { transition: none; } }
+  #hintSheet header { display: flex; align-items: center; gap: 10px; flex: none; margin-bottom: 8px; }
+  #hintSheet h2 { font: 700 18px/1.2 var(--serif); margin: 0; }
+  #hintBody { overflow-y: auto; min-height: 0; flex: 1; }
+  #hintBody .hseg { margin: 0 0 14px; }
+  #hintBody .segtitle { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+  #hintBody .step { display: flex; gap: 10px; align-items: baseline; width: 100%; text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--rule); padding: 7px 2px; color: var(--ink); }
+  #hintBody .step:hover, #hintBody .step:focus-visible { background: var(--door-soft); }
+  #hintBody .step.here { background: var(--door-soft); }
+  #hintBody .step .n { flex: none; width: 2.4em; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  #hintBody .step .c { font-family: var(--mono); font-weight: 700; color: var(--door); }
+  #hintBody .step .note { font-family: var(--serif); font-style: italic; color: var(--muted); font-size: 14.5px; }
+  #hintBody .none { font-family: var(--serif); font-size: 16px; margin: 8px 0 14px; }
+  #hintSheet .credit { flex: none; font-size: 12px; color: var(--muted); margin: 10px 0 0; line-height: 1.4; }
+  #hintBtn:disabled { opacity: .4; cursor: default; }
+  .kbd { font-family: var(--mono); font-size: .9em; background: var(--cmd-bg); padding: 0 5px; border-radius: 3px; }
+</style>
+
+<div id="app">
+  <header class="bar">
+    <div>
+      <h1>The Hobbit</h1>
+      <div class="sub">Melbourne House, 1982</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="status" id="status" data-state="idle"><i></i><span id="statusText">No tape</span></div>
+    <button class="iconbtn" id="hintBtn" title="Hints for this place" aria-label="Hints for this place" disabled>
+      <svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.7.6 1 1.3 1 2.1h5c0-.8.3-1.5 1-2.1A6 6 0 0 0 12 3z"/></svg>
+    </button>
+    <button class="iconbtn" id="menuBtn" title="Settings and saves" aria-label="Settings and saves">
+      <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+  </header>
+
+  <div id="screenPanel" hidden>
+    <div id="screenWrap"><canvas id="screen" width="256" height="192"></canvas></div>
+  </div>
+
+  <div id="log">
+    <div id="loader">
+      <div id="drop">
+        <p>Drop the file here, or</p>
+        <button class="btn" id="pickBtn" type="button">Choose a tape image</button>
+        <input type="file" id="fileInput" accept=".tap,.tzx,.zip,.z80,.sna,.bin">
+        <p class="formats" style="margin-top:12px">.tap · .tzx · .zip · .z80 · .sna</p>
+        <div class="err" id="loadErr" hidden></div>
+      </div>
+    </div>
+    <div id="logInner" hidden></div>
+  </div>
+
+  <div id="dock" hidden>
+    <div id="chips" class="chiprow" aria-label="Ways to go"></div>
+    <div id="things" class="chiprow" aria-label="Things here"></div>
+    <form id="inputRow" autocomplete="off">
+      <input id="cmdInput" type="text" placeholder="What now?" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" enterkeyhint="send" inputmode="text" maxlength="120">
+      <button id="sendBtn" type="submit">Go</button>
+    </form>
+  </div>
+</div>
+
+<div id="scrim"></div>
+<aside id="drawer" aria-label="Settings and saves">
+  <h2>Settings <span class="spacer"></span><button class="iconbtn" id="closeDrawer" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h2>
+
+  <h3>Play</h3>
+  <div class="opt">
+    <div class="lbl">Turn timer<small>The original passes a turn if you sit idle for about 30 seconds.</small></div>
+    <div class="seg" id="segTimer" role="group">
+      <button data-val="pause" aria-pressed="true">Paused</button>
+      <button data-val="live" aria-pressed="false">Original</button>
+    </div>
+  </div>
+  <div class="opt">
+    <div class="lbl">Speed<small>Brisk paces the text but draws pictures at once; Original is the true 1982 pace, slow pictures and all.</small></div>
+    <div class="seg" id="segSpeed" role="group">
+      <button data-val="fast" aria-pressed="true">Instant</button>
+      <button data-val="brisk" aria-pressed="false">Brisk</button>
+      <button data-val="slow" aria-pressed="false">Original</button>
+    </div>
+  </div>
+  <div class="opt wide">
+    <div class="lbl">Location pictures<small>Macintosh shows the 1985 Mac illustrations for each place, in colour. Spectrum shows the game's own drawings; switching to or from them takes effect from the next new game.</small></div>
+    <div class="seg" id="segArt" role="group">
+      <button data-val="mac">Macintosh</button>
+      <button data-val="spectrum">Spectrum</button>
+      <button data-val="none">None</button>
+    </div>
+  </div>
+  <div class="opt">
+    <div class="lbl">Text size</div>
+    <div class="seg" id="segFont" role="group">
+      <button data-val="15">A</button>
+      <button data-val="17" aria-pressed="true">A</button>
+      <button data-val="20">A</button>
+    </div>
+  </div>
+
+  <h3>Saved games</h3>
+  <p class="about" style="margin:0 0 8px">Typing <span class="kbd">SAVE</span> and <span class="kbd">LOAD</span> in the game uses the tape slot. Snapshots capture everything, including the transcript.</p>
+  <div class="slots" id="slots"></div>
+  <div class="row">
+    <button class="btn quiet small" id="exportBtn" type="button">Export snapshot file</button>
+    <button class="btn quiet small" id="importBtn" type="button">Import snapshot</button>
+    <input type="file" id="importInput" accept=".json">
+  </div>
+
+  <h3>Game</h3>
+  <div class="row">
+    <button class="btn quiet small" id="restartBtn" type="button">Restart the game</button>
+    <button class="btn quiet small" id="ejectBtn" type="button">Load a different tape</button>
+  </div>
+
+  <h3>About</h3>
+  <p class="about">The Hobbit is © 1982 Melbourne House / Beam Software, written by Philip Mitchell and Veronika Megler. This page contains none of it; you supply the tape. The emulation follows the approach of <a href="https://github.com/efa/Wilderland" target="_blank" rel="noopener">Wilderland</a>, using addresses from <a href="https://github.com/pobtastic/hobbit" target="_blank" rel="noopener">the SkoolKit disassembly</a>, and the Z80 core is Molly Howell's <a href="https://github.com/DrGoldfire/Z80.js" target="_blank" rel="noopener">Z80.js</a> (MIT). Character set from the Spectrum ROM, © Amstrad, used with its permission for emulators.</p>
+  <p class="about" id="versionInfo"></p>
+</aside>
+<div id="hintScrim"></div>
+<section id="hintSheet" aria-label="Hints" hidden>
+  <header><h2 id="hintTitle">Hints for here</h2><span class="spacer"></span><button class="btn quiet small" id="hintAll" type="button">Whole walkthrough</button><button class="iconbtn" id="hintClose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+  <div id="hintBody"></div>
+  <p class="credit">Walkthrough by Jacob Gunness (1990), written for the DOS release; a few steps are noted where the Spectrum map differs. Tap a step to send it.</p>
+</section>
+<div class="toast" id="toast"></div>
+
+<script>
+/*__Z80__*/
+</script>
+<script>
+/*__MACHINE__*/
+</script>
+<script>
+(function () {
+  'use strict';
+  var CHARSET_B64 = '/*__CHARSET__*/';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var log = $('log'), logInner = $('logInner'), loader = $('loader'), dock = $('dock'), input = $('cmdInput'), sendBtn = $('sendBtn');
+  var status = $('status'), statusText = $('statusText'), screenPanel = $('screenPanel'), screenCanvas = $('screen'), screenWrap = $('screenWrap');
+  var sctx = screenCanvas.getContext('2d');
+  var screenImg = sctx.createImageData(256, 192);
+  var picCanvas = document.createElement('canvas'); picCanvas.width = 256; picCanvas.height = 128;
+  var pctx = picCanvas.getContext('2d');
+  var picImg = pctx.createImageData(256, 128);
+
+  var settings = { timer: 'pause', speed: 'fast', pics: true, art: 'mac', font: '17', screen: false };
+  function loadSettings() {
+    try { var s = JSON.parse(localStorage.getItem('hobbit.settings')); if (s) Object.assign(settings, s); } catch (e) {}
+    if (settings.art === 'macmono') settings.art = 'mac';
+    if (!/^(mac|spectrum|none)$/.test(settings.art)) settings.art = settings.pics === false ? 'none' : 'mac'; // older saved settings
+    settings.pics = settings.art === 'spectrum';
+  }
+  function saveSettings() { try { localStorage.setItem('hobbit.settings', JSON.stringify(settings)); } catch (e) {} }
+  loadSettings();
+
+  var m = new HobbitMachine();
+  m.setCharset(Uint8Array.from(atob(CHARSET_B64), function (c) { return c.charCodeAt(0); }));
+  var loaded = false, curOut = null, curText = null, history = [], histPos = -1, dead = false, lastPicBlock = null;
+  var frameReq = null, lastFrame = 0, flashCounter = 0, lowerBuf = '';
+
+  // ------------------------------------------------------------ transcript
+  function scrollToEnd() { log.scrollTop = log.scrollHeight; }
+  // following the text only while the reader is already at the end, so scrolling back up is never fought
+  function atEnd() { return log.scrollHeight - log.scrollTop - log.clientHeight < 48; }
+  var follow = true, userAway = false, logVersion = 0, scrolledVersion = 0, growthFrames = 0;
+  // a wheel or a finger on the transcript means the reader wants to stay put until they bring it back to the end
+  log.addEventListener('wheel', function (e) {
+    if (e.deltaY < 0) userAway = true;
+    else if (log.scrollTop + log.clientHeight + e.deltaY >= log.scrollHeight - 48) userAway = false;
+  }, { passive: true });
+  log.addEventListener('touchmove', function () { userAway = true; }, { passive: true });
+  log.addEventListener('touchend', function () { if (atEnd()) userAway = false; }, { passive: true });
+  function ensureOut() {
+    if (!curOut) {
+      curOut = document.createElement('div'); curOut.className = 'out';
+      curText = document.createTextNode(''); curOut.appendChild(curText);
+      logInner.appendChild(curOut);
+    }
+  }
+  // newlines are held back until text follows them, so a block never grows and then
+  // shrinks again when it is tidied at the end of the turn
+  var pendingNL = 0;
+  function appendText(t) {
+    logVersion++;
+    ensureOut();
+    for (var i = 0; i < t.length; i++) {
+      var c = t[i];
+      if (c === '\b') { if (curText.data) curText.data = curText.data.slice(0, -1); }
+      else if (c === '\n') { if (curText.data) pendingNL = Math.min(pendingNL + 1, 2); }
+      else {
+        if (pendingNL) { curText.data += pendingNL === 2 ? '\n\n' : '\n'; pendingNL = 0; }
+        curText.data += c;
+      }
+    }
+  }
+  function endOut() { if (curOut) { curOut.textContent = tidy(curOut.textContent); } curOut = null; curText = null; pendingNL = 0; }
+  function tidy(s) { return s.replace(/^\n+/, '').replace(/\n{3,}/g, '\n\n').replace(/[ \t]+\n/g, '\n').replace(/\s+$/, ''); }
+  function sysLine(t, cls) { logVersion++; endOut(); var d = document.createElement('div'); d.className = cls || 'sys'; d.textContent = t; logInner.appendChild(d); return d; }
+  function divider(t) { logVersion++; endOut(); var d = document.createElement('div'); d.className = 'divider'; d.textContent = t; logInner.appendChild(d); }
+  function cmdLine(t, auto) { logVersion++; endOut(); var d = document.createElement('div'); d.className = 'cmd' + (auto ? ' auto' : ''); d.textContent = t; logInner.appendChild(d); return d; }
+  function flushLower() {
+    if (!lowerBuf.trim()) { lowerBuf = ''; return; }
+    var t = lowerBuf.replace(/\s+/g, ' ').trim(); lowerBuf = '';
+    t = t.charAt(0).toUpperCase() + t.slice(1);
+    endOut(); ensureOut(); curText.data = t; endOut();
+  }
+
+  var turnText = ''; // everything the game printed this turn (to spot "It is dark")
+  m.onText = function (t) { if (lowerBuf) flushLower(); turnText += t; appendText(t); };
+  m.onLower = function (t) { lowerBuf += t; };
+  m.onPicture = function () {
+    if (/^mac/.test(settings.art)) return; // the Macintosh illustration for the place is added at the end of the turn instead
+    // top 128 lines of the screen hold the location picture
+    m.render(picImg.data, 0, 128, false);
+    pctx.putImageData(picImg, 0, 0);
+    logVersion++;
+    var fig = document.createElement('figure'); fig.className = 'pic';
+    var p = HobbitMachine.PALETTE[m.border];
+    fig.style.background = 'rgb(' + p[0] + ',' + p[1] + ',' + p[2] + ')';
+    var img = document.createElement('img'); img.width = 256; img.height = 128; img.alt = 'Location picture';
+    img.src = picCanvas.toDataURL('image/png');
+    fig.appendChild(img);
+    // the picture heads the reply: it goes above the text printed so far this turn
+    if (curOut) logInner.insertBefore(fig, curOut); else logInner.appendChild(fig);
+  };
+
+  // ------------------------------------------------------------ Macintosh illustrations
+  // One picture per location, keyed by the Spectrum's room number: the 1985 Macintosh version's
+  // illustrations (240x128, decoded from its data fork by tools/macpics.py), coloured by hand and
+  // packed by tools/locpics.py from the locpics folder. Dark rooms have none, as the game shows nothing there.
+  var LOCPICS = /*__LOCPICS__*/null;
+  function macPicture(room) {
+    if (!LOCPICS) return null;
+    var key = LOCPICS.rooms[(room < 16 ? '0' : '') + room.toString(16)];
+    return key ? 'data:image/png;base64,' + LOCPICS.images[key] : null;
+  }
+  var lastLoc = null, lastCmd = '', visitedBits = null;
+  // The game marks each location once Bilbo has been there (bit 6 of its first byte) and draws its
+  // picture only on that first arrival, or on LOOK; the Mac illustrations keep to the same rule.
+  function readVisited() {
+    var A = m.addr, out = new Uint8Array(256);
+    if (!A || A.locIndex === undefined) return out;
+    for (var r = 1; r < 0x50; r++) { var rec = m.w16(A.locIndex + r * 2); if (rec >= 0x4000) out[r] = (m.mem[rec] & 0x40) ? 1 : 0; }
+    return out;
+  }
+  function placeMacPicture(st) {
+    if (!/^mac/.test(settings.art) || !st) return;
+    var loc = st.location, arrived = loc !== lastLoc, looked = /^(l|look)$/.test(lastCmd), fresh = !visitedBits || !visitedBits[loc];
+    lastLoc = loc; lastCmd = ''; visitedBits = readVisited();
+    if (!((arrived && fresh) || looked) || /It is dark/i.test(turnText)) return;
+    var src = macPicture(loc); if (!src) return;
+    var fig = document.createElement('figure'); fig.className = 'pic mac';
+    var img = document.createElement('img'); img.width = 240; img.height = 128; img.alt = 'Location picture (Macintosh)'; img.src = src;
+    fig.appendChild(img);
+    var cmds = logInner.querySelectorAll('.cmd'), last = cmds.length ? cmds[cmds.length - 1] : null;
+    var anchor = last ? last.nextSibling : logInner.querySelector('.out');
+    logInner.insertBefore(fig, anchor);
+    logVersion++;
+  }
+  m.onEvent = function (name) {
+    if (name === 'restart') {
+      // a fresh game starts with a fresh page
+      lowerBuf = ''; endOut(); logInner.textContent = ''; pendingScrollTarget = null;
+      history = []; histPos = 0; log.scrollTop = 0;
+      dead = false; turnPending = true; follow = true; userAway = false; lastLoc = null; lastCmd = ''; turnText = ''; visitedBits = null;
+      updateDeadUI();
+    } else if (name === 'dead') {
+      flushLower(); endOut(); dead = true; updateDeadUI();
+    } else if (name === 'autowait') {
+      flushLower(); endOut(); cmdLine('wait  (the timer ran out)', true); turnPending = true; lastCmd = ''; turnText = '';
+    } else if (name === 'loaded') {
+      sysLine('Game restored from the tape slot. Type LOOK to see where you are.'); turnPending = true;
+    } else if (name === 'noload') {
+      sysLine('There is no game in the tape slot yet. SAVE first, or use a snapshot from the menu.');
+    }
+  };
+  m.onSave = function (blob) {
+    try { localStorage.setItem('hobbit.tape', JSON.stringify(blob)); sysLine('Game saved to the tape slot in this browser.'); }
+    catch (e) { sysLine('Could not save: this browser is blocking storage.'); }
+  };
+  m.onLoad = function () {
+    try { var s = JSON.parse(localStorage.getItem('hobbit.tape')); return s && s.version === m.version ? s : null; } catch (e) { return null; }
+  };
+
+  function updateDeadUI() {
+    var old = logInner.querySelector('.dead'); if (old) old.remove();
+    if (dead) {
+      var d = document.createElement('div'); d.className = 'dead';
+      d.appendChild(document.createTextNode('That is the end of this Bilbo. '));
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = 'Start again';
+      b.addEventListener('click', function () { m.continueAfterDeath(); dead = false; d.remove(); turnPending = true; startRunning(); });
+      d.appendChild(b); logInner.appendChild(d);
+      scrollToEnd();
+    }
+    setStatus();
+  }
+
+  // ------------------------------------------------------------ status / loop
+  function setStatus() {
+    sendBtn.disabled = !loaded;
+    $('hintBtn').disabled = !loaded || !WALK;
+    if (!loaded) { status.dataset.state = 'idle'; statusText.textContent = 'No tape'; return; }
+    if (dead) { status.dataset.state = 'dead'; statusText.textContent = 'Dead'; return; }
+    if (m.parked || (m.idle && !m.inputQueue.length)) { status.dataset.state = 'waiting'; statusText.textContent = 'Your move'; }
+    else { status.dataset.state = 'running'; statusText.textContent = 'Thinking…'; }
+  }
+
+  function renderScreen() {
+    if (screenPanel.hidden) return;
+    flashCounter++;
+    m.render(screenImg.data, 0, 192, (flashCounter & 16) !== 0);
+    sctx.putImageData(screenImg, 0, 0);
+    var p = HobbitMachine.PALETTE[m.border];
+    screenWrap.style.background = 'rgb(' + p[0] + ',' + p[1] + ',' + p[2] + ')';
+  }
+
+  var running = false, pendingScrollTarget = null, turnPending = true;
+  function frame(now) {
+    frameReq = null;
+    if (!loaded) return;
+    var wasAtEnd = atEnd();
+    if (!m.parked) {
+      var dt = Math.min(50, now - (lastFrame || now)); lastFrame = now;
+      // 1x while the game is idle (the original turn timer), 1x or 4x when pacing the text, flat out otherwise
+      var rate = (m.idle && !m.inputQueue.length) || settings.speed === 'slow' ? 1 : settings.speed === 'brisk' ? 4 : 0;
+      if (rate && settings.speed === 'brisk' && m.drawing) rate = 0; // brisk mode draws the pictures at once
+      if (rate) m.run(Math.max(1, Math.round(3500 * rate * dt)), Date.now() + 12);
+      else m.run(300000000, Date.now() + 12);
+    }
+    if (lowerBuf && (m.parked || m.idle)) flushLower();
+    renderScreen();
+    setStatus();
+    var waiting = m.parked || (m.idle && !m.inputQueue.length);
+    if (waiting && turnPending) { turnPending = false; refreshChips(); placeMacPicture(lastState); turnText = ''; }
+    if (pendingScrollTarget && waiting) { finishScroll(follow || (wasAtEnd && !userAway)); follow = false; }
+    else if (!m.parked && logVersion !== scrolledVersion && (follow || (wasAtEnd && !userAway))) { follow = false; scrolledVersion = logVersion; growthFrames++; scrollToEnd(); }
+    if (!m.parked) frameReq = requestAnimationFrame(frame); else { running = false; lastFrame = 0; }
+  }
+  function startRunning() {
+    if (!loaded) return;
+    if (!frameReq) { running = true; lastFrame = 0; frameReq = requestAnimationFrame(frame); }
+  }
+  function finishScroll(wasAtEnd) {
+    endOut();
+    var target = pendingScrollTarget; pendingScrollTarget = null;
+    if (!wasAtEnd) return; // the reader scrolled away meanwhile: leave them be
+    // a reply that appeared at once is shown from its start when it is longer than the view;
+    // one the reader has been following line by line simply stays at the end
+    var below = logInner.getBoundingClientRect().bottom - target.getBoundingClientRect().top;
+    var paced = growthFrames > 2;
+    var top = !paced && below > log.clientHeight - 20 ? target.offsetTop - 8 : log.scrollHeight;
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (log.scrollTo && !reduce) log.scrollTo({ top: top, behavior: 'smooth' }); else log.scrollTop = top;
+  }
+
+  // ------------------------------------------------------------ input
+  function send(text) {
+    text = (text || '').trim();
+    if (!loaded || !text) return;
+    if (dead) { m.continueAfterDeath(); dead = false; updateDeadUI(); startRunning(); return; }
+    if ((text.match(/"/g) || []).length % 2 === 1) text += '"';
+    text = text.replace(/\b(north|south)[ -]?(east|west)\b/gi, function (w, a, b) { return a[0] + b[0]; });
+    var shown = text.replace(/\s+/g, ' ');
+    pendingScrollTarget = cmdLine(shown === '@' ? 'again' : shown.toLowerCase(), false);
+    if (history[history.length - 1] !== text) history.push(text);
+    histPos = history.length;
+    m.type(text);
+    lastCmd = text.toLowerCase(); turnText = '';
+    follow = true; userAway = false; growthFrames = 0; // the new command line is always brought into view
+    turnPending = true;
+    setStatus();
+    startRunning();
+  }
+  $('inputRow').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var t = input.value; input.value = '';
+    send(t);
+    input.focus();
+  });
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowUp') { if (histPos > 0) { histPos--; input.value = history[histPos] || ''; } e.preventDefault(); }
+    else if (e.key === 'ArrowDown') { if (histPos < history.length) { histPos++; input.value = history[histPos] || ''; } e.preventDefault(); }
+  });
+  // ------------------------------------------------------------ chips: only what is viable this turn
+  var chipsRow = $('chips'), thingsRow = $('things'), selected = null, lastState = null;
+  var DIR_ABBR = { north: 'N', south: 'S', east: 'E', west: 'W', northeast: 'NE', northwest: 'NW', southeast: 'SE', southwest: 'SW', up: 'Up', down: 'Dn' };
+  // the parser matches on the first letters of a word, so "southwest" reads as "south"; only the short forms are safe
+  var DIR_CMD = { north: 'n', south: 's', east: 'e', west: 'w', northeast: 'ne', northwest: 'nw', southeast: 'se', southwest: 'sw', up: 'up', down: 'down' };
+  var DIR_ORDER = ['north', 'south', 'east', 'west', 'northeast', 'northwest', 'southeast', 'southwest', 'up', 'down'];
+  // The game's own action list, as each object declares which ones it answers to.
+  // %s is the object, %o the second object chosen from the candidates.
+  var ACTIONS = {
+    0x0b: [{ label: 'Smash', pat: 'smash %s' }, { label: 'Strike with…', pat: 'strike %s with %o', cands: 'carried' }],
+    0x0c: { label: 'Close', pat: 'close %s', when: function (t) { return t.open; } },
+    0x0e: { label: 'Put … in', pat: 'put %o in %s', cands: 'carried' },
+    0x0f: { label: 'Attack with…', pat: 'attack %s with %o', cands: 'carried' },
+    0x10: { label: 'Open', pat: 'open %s', when: function (t) { return !t.open; } },
+    0x11: { label: 'Put … in', pat: 'put %o in %s', cands: 'carried' },
+    0x12: { label: 'Put … on', pat: 'put %o on %s', cands: 'carried' },
+    0x16: { label: 'Take off', pat: 'take off %s' },
+    0x18: { label: 'Look through', pat: 'look through %s' },
+    0x19: { label: 'Look across', pat: 'look across %s' },
+    0x1b: { label: 'Eat', pat: 'eat %s' },
+    0x1e: { label: 'Go through', pat: 'go through %s' },
+    0x1f: { label: 'Enter', pat: 'enter %s' },
+    0x20: { label: 'Go into', pat: 'go into %s' },
+    0x21: { label: 'Drink', pat: 'drink %s' },
+    0x22: { label: 'Empty', pat: 'empty %s' },
+    0x23: { label: 'Fill with…', pat: 'fill %s with %o', cands: 'fluids' },
+    0x25: { label: 'Lock with…', pat: 'lock %s with %o', cands: 'carried', when: function (t) { return !t.locked; } },
+    0x26: { label: 'Unlock with…', pat: 'unlock %s with %o', cands: 'carried', when: function (t) { return t.locked; } },
+    0x28: { label: 'Wear', pat: 'wear %s' },
+    0x29: { label: 'Throw', pat: 'throw %s' },
+    0x2a: { label: 'Throw at…', pat: 'throw %s at %o', cands: 'people' },
+    0x2b: { label: 'Throw across…', pat: 'throw %s across %o', cands: 'here' },
+    0x2c: { label: 'Throw … through', pat: 'throw %o through %s', cands: 'carried' },
+    0x2d: { label: 'Burn', pat: 'burn %s' },
+    0x2e: { label: 'Tie to…', pat: 'tie %s to %o', cands: 'here' },
+    0x2f: { label: 'Cut', pat: 'cut %s' },
+    0x30: { label: 'Capture', pat: 'capture %s' },
+    0x31: { label: 'Pull', pat: 'pull %s' },
+    0x32: { label: 'Swim', pat: 'swim %s' },
+    0x33: { label: 'Untie', pat: 'untie %s' },
+    0x34: { label: 'Climb', pat: 'climb %s' },
+    0x36: { label: 'Climb into', pat: 'climb into %s' },
+    0x37: { label: 'Climb out of', pat: 'climb out of %s' },
+    0x38: { label: 'Jump onto', pat: 'jump onto %s' },
+    0x39: { label: 'Dig', pat: 'dig %s' },
+    0x3a: { label: 'Shoot', pat: 'shoot %s' },
+    0x3b: { label: 'Carry', pat: 'carry %s' }
+  };
+  function candidates(kind, subject) {
+    if (!lastState) return [];
+    var not = function (x) { return x !== subject; };
+    if (kind === 'carried') return lastState.carried.filter(not);
+    if (kind === 'people') return lastState.here.filter(function (x) { return x.animal; });
+    if (kind === 'fluids') return lastState.here.concat(lastState.carried).filter(function (x) { return x.fluid && x !== subject; });
+    if (kind === 'here') return lastState.here.filter(function (x) { return !x.animal && x !== subject; });
+    return [];
+  }
+  function chip(label, opts) {
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'chip' + (opts.cls ? ' ' + opts.cls : '');
+    b.textContent = label; if (opts.title) b.title = opts.title;
+    if (opts.cmd) b.dataset.cmd = opts.cmd;
+    if (opts.ins) b.dataset.ins = opts.ins;
+    if (opts.act) b.dataset.act = opts.act;
+    if (opts.id !== undefined) b.dataset.id = String(opts.id);
+    return b;
+  }
+  function sep() { var s = document.createElement('span'); s.className = 'chipsep'; return s; }
+  function cap(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
+  function refreshChips() {
+    var st = loaded ? m.state() : null;
+    lastState = st;
+    chipsRow.textContent = ''; thingsRow.textContent = '';
+    if (st) {
+      var exits = st.exits.slice().sort(function (a, b) { return DIR_ORDER.indexOf(a.word) - DIR_ORDER.indexOf(b.word); });
+      exits.forEach(function (e) {
+        chipsRow.appendChild(chip(DIR_ABBR[e.word] || cap(e.word), { cls: 'dir' + (e.door ? ' door' : ''), cmd: DIR_CMD[e.word] || e.word, title: e.door ? cap(e.word) + ', through the ' + e.door : cap(e.word) }));
+      });
+      if (exits.length) chipsRow.appendChild(sep());
+    } else if (loaded) {
+      DIR_ORDER.forEach(function (w) { chipsRow.appendChild(chip(DIR_ABBR[w], { cls: 'dir', cmd: DIR_CMD[w] })); });
+      chipsRow.appendChild(sep());
+    }
+    chipsRow.appendChild(chip('Look', { cmd: 'look' }));
+    chipsRow.appendChild(chip('Inventory', { cmd: 'inventory' }));
+    chipsRow.appendChild(chip('Wait', { cmd: 'wait' }));
+    chipsRow.appendChild(chip('Again', { cmd: '@', title: 'Repeat the last command' }));
+    selected = null;
+    renderThings();
+  }
+  function findThing(id) {
+    if (!lastState) return null;
+    var all = lastState.here.concat(lastState.carried);
+    for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i];
+    return null;
+  }
+  function renderThings() {
+    thingsRow.textContent = '';
+    if (!lastState) { thingsRow.hidden = true; return; }
+    thingsRow.hidden = false;
+    if (selected) {
+      var t = selected.thing, carried = selected.carried, name = t.ref || t.name;
+      thingsRow.appendChild(chip('\u2039', { cls: 'back', act: 'back', title: 'Back' }));
+      thingsRow.appendChild(chip(cap(t.name), { cls: 'subject', act: 'back' }));
+      if (selected.mode === 'with') {
+        var cs = candidates(selected.cands, t);
+        cs.forEach(function (x) { thingsRow.appendChild(chip(x.name, { cmd: selected.pat.replace('%s', name).replace('%o', x.ref || x.name) })); });
+        if (!cs.length) { var h0 = document.createElement('span'); h0.className = 'hint'; h0.textContent = 'Nothing suitable to hand.'; thingsRow.appendChild(h0); }
+        return;
+      }
+      if (selected.mode === 'give') {
+        // give <item> to <person>
+        var targets = t.animal ? lastState.carried : lastState.here.filter(function (x) { return x.animal; });
+        targets.forEach(function (x) {
+          var xr = x.ref || x.name;
+          var c = t.animal ? 'give ' + xr + ' to ' + name : 'give ' + name + ' to ' + xr;
+          thingsRow.appendChild(chip(t.animal ? x.name : 'to ' + cap(x.name), { cmd: c }));
+        });
+        if (!targets.length) { var h = document.createElement('span'); h.className = 'hint'; h.textContent = t.animal ? 'You carry nothing to give.' : 'Nobody here to give it to.'; thingsRow.appendChild(h); }
+        return;
+      }
+      var verbs = [['Examine', { cmd: 'examine ' + name }]];
+      if (t.animal) {
+        verbs.push(['Say to…', { ins: 'say to ' + name + ' "' }]);
+        verbs.push(['Carry me', { cmd: 'say to ' + name + ' "carry me"' }]);
+        verbs.push(['Follow', { cmd: 'follow ' + name }]);
+        if (lastState.carried.length) verbs.push(['Give…', { act: 'give' }]);
+        verbs.push(['Attack', { cmd: 'attack ' + name }]);
+        if (lastState.carried.length) verbs.push(['Attack with…', { act: 'with', pat: 'attack %s with %o', cands: 'carried' }]);
+      } else {
+        if (carried) verbs.push(['Drop', { cmd: 'drop ' + name }]);
+        else if (!t.fixed) verbs.push(['Take', { cmd: 'take ' + name }]);
+        var seen = {};
+        (t.actions || []).forEach(function (id) {
+          var list = ACTIONS[id]; if (!list) return;
+          if (id === 0x0b && /^(sword|bow|arrow)$/.test(t.noun)) list = [{ label: 'Strike … with', pat: 'strike %o with %s', cands: 'here' }];
+          (Array.isArray(list) ? list : [list]).forEach(function (a) {
+            if (seen[a.label]) return;
+            if (a.when && !a.when(t)) return;
+            if (a.cands && !candidates(a.cands, t).length) return;
+            seen[a.label] = true;
+            verbs.push([a.label, a.cands ? { act: 'with', pat: a.pat, cands: a.cands } : { cmd: a.pat.replace('%s', name) }]);
+          });
+        });
+        if (carried && lastState.here.some(function (x) { return x.animal; })) verbs.push(['Give to…', { act: 'give' }]);
+      }
+      verbs.forEach(function (v) { var c = chip(v[0], v[1]); if (v[1].pat) c.dataset.pat = v[1].pat; if (v[1].cands) c.dataset.cands = v[1].cands; thingsRow.appendChild(c); });
+      return;
+    }
+    var people = lastState.here.filter(function (x) { return x.animal; }), objs = lastState.here.filter(function (x) { return !x.animal; });
+    people.forEach(function (x) { thingsRow.appendChild(chip(cap(x.name), { cls: 'person', act: 'pick', id: x.id, title: 'Talk to, examine, follow…' })); });
+    objs.forEach(function (x) { thingsRow.appendChild(chip(x.name, { act: 'pick', id: x.id, title: 'Examine, take, open…' })); });
+    if (lastState.carried.length) {
+      if (people.length || objs.length) thingsRow.appendChild(sep());
+      lastState.carried.forEach(function (x) { thingsRow.appendChild(chip(x.name, { cls: 'carried', act: 'pick', id: x.id, title: 'Carrying: examine, drop, give…' })); });
+    }
+    if (!people.length && !objs.length && !lastState.carried.length) { var h2 = document.createElement('span'); h2.className = 'hint'; h2.textContent = 'Nothing here to handle.'; thingsRow.appendChild(h2); }
+  }
+  function insertText(t) {
+    input.value = (input.value ? input.value.replace(/\s*$/, ' ') : '') + t;
+    input.focus(); input.setSelectionRange(input.value.length, input.value.length);
+  }
+  // chips keep the keyboard where it is: they never take focus
+  [chipsRow, thingsRow].forEach(function (row) {
+    row.addEventListener('pointerdown', function (e) { if (e.target.closest('button')) e.preventDefault(); });
+    row.addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      var act = b.dataset.act;
+      if (act === 'pick') {
+        var id = parseInt(b.dataset.id, 10), thing = findThing(id); if (!thing) return;
+        // a half-typed command takes the name instead of opening the verb menu
+        if (/\s$/.test(input.value) && input.value.trim()) { insertText(thing.ref || thing.name); return; }
+        selected = { thing: thing, carried: lastState.carried.indexOf(thing) >= 0, mode: null }; renderThings(); thingsRow.scrollLeft = 0;
+      } else if (act === 'back') { selected = null; renderThings(); }
+      else if (act === 'give') { selected.mode = 'give'; renderThings(); }
+      else if (act === 'with') { selected.mode = 'with'; selected.pat = b.dataset.pat; selected.cands = b.dataset.cands; renderThings(); }
+      else if (b.dataset.cmd) send(b.dataset.cmd);
+      else if (b.dataset.ins) insertText(b.dataset.ins);
+    });
+  });
+  // tap a word in the transcript to add it to the command line
+  logInner.addEventListener('click', function (e) {
+    if (e.target.closest('button, a, figure')) return;
+    if (loaded && !m.parked && !dead && !(m.idle && !m.inputQueue.length)) { m.pressAnyKey('SHIFT'); return; }
+    var range = null;
+    if (document.caretPositionFromPoint) { var cp = document.caretPositionFromPoint(e.clientX, e.clientY); if (cp) range = { node: cp.offsetNode, offset: cp.offset }; }
+    else if (document.caretRangeFromPoint) { var r = document.caretRangeFromPoint(e.clientX, e.clientY); if (r) range = { node: r.startContainer, offset: r.startOffset }; }
+    if (!range || range.node.nodeType !== 3) return;
+    var s = range.node.data, i = range.offset, a = i, b = i;
+    while (a > 0 && /[A-Za-z']/.test(s[a - 1])) a--;
+    while (b < s.length && /[A-Za-z']/.test(s[b])) b++;
+    var word = s.slice(a, b).toLowerCase();
+    if (!word) return;
+    input.value = (input.value ? input.value.replace(/\s*$/, ' ') : '') + word + ' ';
+    input.focus(); input.setSelectionRange(input.value.length, input.value.length);
+  });
+
+  // keep the dock above the on-screen keyboard
+  if (window.visualViewport) {
+    var vv = window.visualViewport, app = $('app');
+    var fit = function () {
+      app.style.height = vv.height + 'px';
+      app.style.top = vv.offsetTop + 'px';
+      if (document.activeElement === input) setTimeout(scrollToEnd, 50);
+    };
+    vv.addEventListener('resize', fit); vv.addEventListener('scroll', fit);
+  }
+
+  // ------------------------------------------------------------ loading files
+  function b64(bytes) { var s = ''; for (var i = 0; i < bytes.length; i += 8192) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192)); return btoa(s); }
+  function unb64(s) { return Uint8Array.from(atob(s), function (c) { return c.charCodeAt(0); }); }
+
+  function unzip(bytes) {
+    // reads the central directory and inflates the first tape-like entry
+    var dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength), n = bytes.length;
+    var eocd = -1;
+    for (var i = n - 22; i >= Math.max(0, n - 66000); i--) { if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; } }
+    if (eocd < 0) return Promise.reject(new Error('Not a zip file.'));
+    var count = dv.getUint16(eocd + 10, true), cd = dv.getUint32(eocd + 16, true), entries = [], p = cd;
+    for (var k = 0; k < count && p + 46 <= n; k++) {
+      if (dv.getUint32(p, true) !== 0x02014b50) break;
+      var method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true), usize = dv.getUint32(p + 24, true);
+      var nlen = dv.getUint16(p + 28, true), elen = dv.getUint16(p + 30, true), clen = dv.getUint16(p + 32, true), off = dv.getUint32(p + 42, true);
+      var name = String.fromCharCode.apply(null, bytes.subarray(p + 46, p + 46 + nlen));
+      entries.push({ name: name, method: method, csize: csize, usize: usize, off: off });
+      p += 46 + nlen + elen + clen;
+    }
+    var pick = entries.filter(function (e) { return /\.(tap|tzx|z80|sna|bin)$/i.test(e.name) && e.usize > 0; });
+    if (!pick.length) return Promise.reject(new Error('The zip has no .tap, .tzx, .z80 or .sna inside.'));
+    pick.sort(function (a, b) { return b.usize - a.usize; });
+    var e = pick[0], lh = e.off;
+    var lnlen = dv.getUint16(lh + 26, true), lelen = dv.getUint16(lh + 28, true);
+    var data = bytes.subarray(lh + 30 + lnlen + lelen, lh + 30 + lnlen + lelen + e.csize);
+    if (e.method === 0) return Promise.resolve({ name: e.name, bytes: data });
+    if (e.method !== 8) return Promise.reject(new Error('Unsupported zip compression.'));
+    if (typeof DecompressionStream === 'undefined') return Promise.reject(new Error('This browser cannot unzip; please unpack the file first.'));
+    var ds = new DecompressionStream('deflate-raw');
+    var blob = new Blob([data]);
+    return new Response(blob.stream().pipeThrough(ds)).arrayBuffer().then(function (buf) { return { name: e.name, bytes: new Uint8Array(buf) }; });
+  }
+
+  function loadFile(file) {
+    var err = $('loadErr'); err.hidden = true;
+    file.arrayBuffer().then(function (buf) {
+      var bytes = new Uint8Array(buf), name = file.name;
+      if (bytes.length > 3 && bytes[0] === 0x50 && bytes[1] === 0x4b) return unzip(bytes);
+      return { name: name, bytes: bytes };
+    }).then(function (f) {
+      var name = f.name.toLowerCase(), info;
+      if (/\.sna$/.test(name)) info = m.loadSNA(f.bytes);
+      else if (/\.z80$/.test(name)) info = m.loadZ80(f.bytes);
+      else if (/\.bin$/.test(name)) info = m.loadBinary(f.bytes);
+      else info = m.loadTape(f.bytes);
+      begin(info, f.name);
+    }).catch(function (e) {
+      err.textContent = 'Could not load that file. ' + (e && e.message ? e.message : '');
+      err.hidden = false;
+    });
+  }
+
+  function begin(info, name) {
+    loaded = true; dead = false;
+    m.pauseTimer = settings.timer === 'pause';
+    m.graphics = settings.pics;
+    loader.hidden = true; logInner.hidden = false; dock.hidden = false;
+    logInner.textContent = ''; curOut = null; lowerBuf = ''; lastLoc = null; lastCmd = ''; turnText = ''; visitedBits = null;
+    var v = info.version === 'unknown' ? 'an unrecognised version' : 'version ' + info.version.replace('v', '');
+    $('versionInfo').textContent = 'Loaded ' + name + ' (' + v + ').' + (info.hooksOK ? '' : ' Text hooks not found: showing the Spectrum screen only.') + (info.addr && info.addr.noPicturesOption === false ? ' This version has no text-only mode.' : '');
+    showScreen = !info.hooksOK; applyScreenSetting();
+    if (!info.hooksOK) { sysLine('This version is not recognised. The Spectrum screen is shown instead of a transcript; commands are typed through the emulated keyboard.'); }
+    if (info.snapshot) sysLine('Snapshot loaded. Type LOOK to see where you are.');
+    setStatus();
+    turnPending = true; refreshChips();
+    startRunning();
+    input.focus();
+  }
+
+  $('pickBtn').addEventListener('click', function () { $('fileInput').click(); });
+  $('fileInput').addEventListener('change', function () { if (this.files[0]) loadFile(this.files[0]); this.value = ''; });
+  var drop = $('drop');
+  ['dragenter', 'dragover'].forEach(function (ev) { document.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('over'); }); });
+  ['dragleave', 'drop'].forEach(function (ev) { document.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('over'); }); });
+  document.addEventListener('drop', function (e) { var f = e.dataTransfer && e.dataTransfer.files[0]; if (f) loadFile(f); });
+
+  // ------------------------------------------------------------ drawer & settings
+  var drawer = $('drawer'), scrim = $('scrim');
+  function openDrawer() { drawer.classList.add('open'); scrim.classList.add('open'); renderSlots(); }
+  function closeDrawer() { drawer.classList.remove('open'); scrim.classList.remove('open'); }
+  $('menuBtn').addEventListener('click', openDrawer);
+  $('closeDrawer').addEventListener('click', closeDrawer);
+  scrim.addEventListener('click', closeDrawer);
+
+  function seg(id, key, onChange) {
+    var el = $(id);
+    Array.prototype.forEach.call(el.querySelectorAll('button'), function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.val === String(settings[key])));
+      b.addEventListener('click', function () {
+        settings[key] = b.dataset.val; saveSettings();
+        Array.prototype.forEach.call(el.querySelectorAll('button'), function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+        if (onChange) onChange();
+      });
+    });
+  }
+  seg('segTimer', 'timer', function () { m.pauseTimer = settings.timer === 'pause'; if (!m.pauseTimer && m.parked) { m.parked = false; startRunning(); } });
+  seg('segSpeed', 'speed');
+  seg('segFont', 'font', applyFont);
+  function applyFont() { document.documentElement.style.setProperty('--fs', settings.font + 'px'); }
+  applyFont();
+  seg('segArt', 'art', function () { settings.pics = settings.art === 'spectrum'; m.graphics = settings.pics; saveSettings(); });
+
+  // the Spectrum screen itself is shown only as a fallback for a version whose text hooks were not found
+  var showScreen = false;
+  function applyScreenSetting() { screenPanel.hidden = !showScreen; if (showScreen) renderScreen(); }
+  applyScreenSetting();
+
+  // ------------------------------------------------------------ snapshots
+  function slotKey(i) { return 'hobbit.slot' + i; }
+  function readSlot(i) { try { return JSON.parse(localStorage.getItem(slotKey(i))); } catch (e) { return null; } }
+  function makeSnapshot() {
+    var s = m.snapshot();
+    return { kind: 'hobbit-web-snapshot', when: Date.now(), version: s.version, entry: s.entry, cpu: s.cpu, border: s.border, tstates: s.tstates,
+      parked: s.parked, idle: s.idle, started: s.started, mem: b64(s.mem), transcript: logInner.innerHTML, history: history.slice(-50) };
+  }
+  function applySnapshot(snap) {
+    if (!snap || snap.kind !== 'hobbit-web-snapshot' || !snap.mem) throw new Error('Not a snapshot.');
+    var mem = unb64(snap.mem);
+    if (!loaded) { m.mem.set(mem); var info = m.prepare({ codeLength: 40000, snapshot: true }); loaded = true; loader.hidden = true; logInner.hidden = false; dock.hidden = false; $('versionInfo').textContent = 'Restored a snapshot (version ' + info.version.replace('v', '') + ').'; }
+    m.restore({ mem: mem, cpu: snap.cpu, border: snap.border, tstates: snap.tstates, parked: snap.parked, idle: snap.idle, started: snap.started });
+    m.pauseTimer = settings.timer === 'pause'; m.graphics = settings.pics;
+    logInner.textContent = ''; restoreTranscript(snap.transcript || ''); curOut = null; curText = null; lowerBuf = '';
+    history = snap.history || []; histPos = history.length; dead = false;
+    var oldDead = logInner.querySelector('.dead'); if (oldDead) oldDead.remove();
+    sysLine('Snapshot restored.');
+    setStatus(); renderScreen(); scrollToEnd(); turnPending = true; refreshChips(); lastLoc = lastState ? lastState.location : null; lastCmd = ''; turnText = ''; visitedBits = readVisited();
+    if (!m.parked) startRunning();
+  }
+  // rebuilds a saved transcript keeping only the elements this page creates
+  function restoreTranscript(html) {
+    var doc = new DOMParser().parseFromString('<div>' + html + '</div>', 'text/html');
+    var src = doc.body.firstChild; if (!src) return;
+    var okClass = { out: 1, cmd: 1, 'cmd auto': 1, sys: 1, divider: 1, pic: 1 };
+    Array.prototype.forEach.call(src.children, function (el) {
+      var cls = el.getAttribute('class') || '';
+      if (el.tagName === 'FIGURE' && (cls === 'pic' || cls === 'pic mac')) {
+        var img = el.querySelector('img'); if (!img || !/^data:image\/png;base64,[A-Za-z0-9+\/=]+$/.test(img.getAttribute('src') || '')) return;
+        logVersion++;
+        var fig = document.createElement('figure'); fig.className = cls;
+        var bg = el.getAttribute('style') || ''; var mm = /rgb\((\d+),\s*(\d+),\s*(\d+)\)/.exec(bg); if (mm) fig.style.background = 'rgb(' + mm[1] + ',' + mm[2] + ',' + mm[3] + ')';
+        var im = document.createElement('img'); im.width = cls === 'pic mac' ? 240 : 256; im.height = 128; im.alt = 'Location picture'; im.src = img.getAttribute('src');
+        fig.appendChild(im); logInner.appendChild(fig);
+      } else if (el.tagName === 'DIV' && okClass[cls]) {
+        var d = document.createElement('div'); d.className = cls; d.textContent = el.textContent; logInner.appendChild(d);
+      }
+    });
+  }
+  function renderSlots() {
+    var box = $('slots'); box.textContent = '';
+    for (var i = 1; i <= 3; i++) (function (i) {
+      var s = readSlot(i), row = document.createElement('div'); row.className = 'slot';
+      var name = document.createElement('div'); name.className = 'name';
+      name.textContent = 'Snapshot ' + i;
+      var small = document.createElement('small'); small.textContent = s ? new Date(s.when).toLocaleString() : 'Empty'; name.appendChild(small);
+      row.appendChild(name);
+      var save = document.createElement('button'); save.className = 'btn small'; save.type = 'button'; save.textContent = 'Save';
+      save.disabled = !loaded;
+      save.addEventListener('click', function () {
+        try { localStorage.setItem(slotKey(i), JSON.stringify(makeSnapshot())); toast('Saved to snapshot ' + i); renderSlots(); }
+        catch (e) { toast('Could not save: storage is full or blocked.'); }
+      });
+      var load = document.createElement('button'); load.className = 'btn quiet small'; load.type = 'button'; load.textContent = 'Restore';
+      load.disabled = !s;
+      load.addEventListener('click', function () { try { applySnapshot(readSlot(i)); closeDrawer(); } catch (e) { toast('That snapshot could not be restored.'); } });
+      row.appendChild(save); row.appendChild(load);
+      box.appendChild(row);
+    })(i);
+  }
+
+  $('exportBtn').addEventListener('click', function () {
+    if (!loaded) { toast('Load a tape first.'); return; }
+    var data = JSON.stringify(makeSnapshot());
+    var p = (window.claude && typeof window.claude.use === 'function') ? window.claude.use('downloads') : Promise.resolve(null);
+    p.then(function (dl) {
+      if (!dl) { toast('Exporting files is not available here.'); return; }
+      return dl.save({ filename: 'hobbit-snapshot.json', data: data }).then(function () { toast('Snapshot exported.'); });
+    }).catch(function (e) { if (!e || e.code !== 'declined') toast('Export failed.'); });
+  });
+  $('importBtn').addEventListener('click', function () { $('importInput').click(); });
+  $('importInput').addEventListener('change', function () {
+    var f = this.files[0]; this.value = ''; if (!f) return;
+    f.text().then(function (t) { applySnapshot(JSON.parse(t)); closeDrawer(); }).catch(function () { toast('That file is not a Hobbit snapshot.'); });
+  });
+  // Dialogs are unavailable inside the viewer, so destructive buttons ask by
+  // arming themselves: a second tap within a few seconds confirms.
+  function armed(btn, label, action) {
+    var timer = null, original = btn.textContent;
+    btn.addEventListener('click', function () {
+      if (btn.dataset.armed === '1') { clearTimeout(timer); btn.dataset.armed = ''; btn.textContent = original; btn.classList.remove('danger'); action(); return; }
+      if (!loaded) { action(); return; }
+      btn.dataset.armed = '1'; btn.textContent = label; btn.classList.add('danger');
+      timer = setTimeout(function () { btn.dataset.armed = ''; btn.textContent = original; btn.classList.remove('danger'); }, 4000);
+    });
+  }
+  armed($('restartBtn'), 'Tap again to restart', function () {
+    if (!loaded) return;
+    m.graphics = settings.pics; m.pauseTimer = settings.timer === 'pause';
+    m.restart();
+    dead = false; updateDeadUI(); closeDrawer(); turnPending = true; startRunning();
+  });
+  armed($('ejectBtn'), 'Tap again to eject', function () {
+    closeDrawer();
+    loaded = false; if (frameReq) { cancelAnimationFrame(frameReq); frameReq = null; }
+    logInner.hidden = true; dock.hidden = true; loader.hidden = false; setStatus();
+    $('fileInput').click();
+  });
+
+  // ------------------------------------------------------------ hints from the walkthrough
+  var WALK = /*__WALKTHROUGH__*/null;
+  var hintSheet = $('hintSheet'), hintScrim = $('hintScrim'), hintBody = $('hintBody'), hintAllBtn = $('hintAll'), showingAll = false;
+  function stepButton(st, idx, here) {
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'step' + (here ? ' here' : ''); b.dataset.cmd = st.c;
+    var n = document.createElement('span'); n.className = 'n'; n.textContent = String(idx + 1); b.appendChild(n);
+    var body = document.createElement('span');
+    var c = document.createElement('span'); c.className = 'c'; c.textContent = st.c; body.appendChild(c);
+    if (st.n) { var note = document.createElement('span'); note.className = 'note'; note.textContent = ' ' + st.n; body.appendChild(note); }
+    b.appendChild(body);
+    return b;
+  }
+  function renderHints() {
+    hintBody.textContent = '';
+    if (!WALK) return;
+    var st = loaded ? m.state() : null, room = st ? st.location : -1;
+    hintAllBtn.textContent = showingAll ? 'Only this place' : 'Whole walkthrough';
+    $('hintTitle').textContent = showingAll ? 'The whole walkthrough' : 'Hints for here';
+    if (showingAll) {
+      var seg = document.createElement('div'); seg.className = 'hseg';
+      WALK.steps.forEach(function (s, i) { seg.appendChild(stepButton(s, i, s.r === room)); });
+      hintBody.appendChild(seg);
+      var first = hintBody.querySelector('.step.here'); if (first) first.scrollIntoView({ block: 'center' });
+      return;
+    }
+    // runs of consecutive steps that happen in this room
+    var runs = [], cur = null;
+    WALK.steps.forEach(function (s, i) {
+      if (s.r === room) { if (!cur) { cur = { from: i, to: i }; runs.push(cur); } else cur.to = i; }
+      else cur = null;
+    });
+    if (!runs.length) {
+      var p = document.createElement('p'); p.className = 'none';
+      p.textContent = room < 0 ? 'Load a tape first.' : 'The walkthrough does not pass through this place. You may have wandered off the route, which is no bad thing.';
+      hintBody.appendChild(p); return;
+    }
+    runs.forEach(function (r) {
+      var seg = document.createElement('div'); seg.className = 'hseg';
+      var t = document.createElement('div'); t.className = 'segtitle';
+      t.textContent = (runs.length > 1 ? 'Visit ' + (runs.indexOf(r) + 1) + ' · ' : '') + 'steps ' + (r.from + 1) + (r.to > r.from ? '–' + (r.to + 1) : '') + ' of ' + WALK.steps.length;
+      seg.appendChild(t);
+      for (var i = r.from; i <= r.to; i++) seg.appendChild(stepButton(WALK.steps[i], i, false));
+      hintBody.appendChild(seg);
+    });
+  }
+  function openHints() { showingAll = false; renderHints(); hintSheet.hidden = false; requestAnimationFrame(function () { hintSheet.classList.add('open'); hintScrim.classList.add('open'); }); }
+  function closeHints() { hintSheet.classList.remove('open'); hintScrim.classList.remove('open'); setTimeout(function () { if (!hintSheet.classList.contains('open')) hintSheet.hidden = true; }, 240); }
+  $('hintBtn').addEventListener('click', openHints);
+  $('hintClose').addEventListener('click', closeHints);
+  hintScrim.addEventListener('click', closeHints);
+  hintAllBtn.addEventListener('click', function () { showingAll = !showingAll; renderHints(); });
+  hintBody.addEventListener('click', function (e) {
+    var b = e.target.closest('.step'); if (!b || !loaded) return;
+    closeHints(); send(b.dataset.cmd.toLowerCase());
+  });
+
+  var toastEl = $('toast'), toastTimer = null;
+  function toast(t) { toastEl.textContent = t; toastEl.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 2200); }
+
+  // Republish-friendly: hand the running game to the next version of this page.
+  try {
+    var hot = window.claude && window.claude.hot;
+    if (hot && typeof hot.snapshot === 'function') hot.snapshot(function () { return loaded ? makeSnapshot() : null; });
+    var boot = function (data) { if (data && data.kind === 'hobbit-web-snapshot') { try { applySnapshot(data); } catch (e) {} } };
+    if (hot && typeof hot.ready === 'function') hot.ready(boot); else boot(hot && hot.data);
+  } catch (e) {}
+
+  setStatus();
+})();
+</script>
