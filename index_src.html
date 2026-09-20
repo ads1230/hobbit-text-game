@@ -284,7 +284,7 @@
   </div>
 
   <h3>About</h3>
-  <p class="about">The Hobbit is © 1982 Melbourne House / Beam Software, written by Philip Mitchell and Veronika Megler. The built-in tape is the Sinclair Research release; any other version can be loaded above. The emulation follows the approach of <a href="https://github.com/efa/Wilderland" target="_blank" rel="noopener">Wilderland</a>, using addresses from <a href="https://github.com/pobtastic/hobbit" target="_blank" rel="noopener">the SkoolKit disassembly</a>, and the Z80 core is Molly Howell's <a href="https://github.com/DrGoldfire/Z80.js" target="_blank" rel="noopener">Z80.js</a> (MIT). Character set from the Spectrum ROM, © Amstrad, used with its permission for emulators.</p>
+  <p class="about">The Hobbit is © 1982 Melbourne House / Beam Software, written by Philip Mitchell and Veronika Megler. The built-in tape is the Sinclair Research Ltd re-release of 1982; any other version can be loaded above. The emulation follows the approach of <a href="https://github.com/efa/Wilderland" target="_blank" rel="noopener">Wilderland</a>, using addresses from <a href="https://github.com/pobtastic/hobbit" target="_blank" rel="noopener">the SkoolKit disassembly</a>, and the Z80 core is Molly Howell's <a href="https://github.com/DrGoldfire/Z80.js" target="_blank" rel="noopener">Z80.js</a> (MIT). Character set from the Spectrum ROM, © Amstrad, used with its permission for emulators.</p>
   <p class="about" id="versionInfo"></p>
 </aside>
 <div id="hintScrim"></div>
@@ -849,7 +849,8 @@
     m.graphics = settings.pics;
     loader.hidden = true; logInner.hidden = false; dock.hidden = false;
     logInner.textContent = ''; curOut = null; lowerBuf = ''; lastLoc = null; lastCmd = ''; turnText = ''; visitedBits = null;
-    var v = info.version === 'unknown' ? 'an unrecognised version' : 'version ' + info.version.replace('v', '');
+    // only 1.2 announces itself (it is the one with a text-only mode); the 1982 releases share the earlier code
+    var v = info.version === 'unknown' ? 'an unrecognised version' : info.version === 'v1.2' ? 'version 1.2' : 'the 1982 code';
     $('versionInfo').textContent = 'Loaded ' + name + ' (' + v + ').' + (info.hooksOK ? '' : ' Text hooks not found: showing the Spectrum screen only.') + (info.addr && info.addr.noPicturesOption === false ? ' This version has no text-only mode.' : '');
     showScreen = !info.hooksOK; applyScreenSetting();
     if (!info.hooksOK) { sysLine('This version is not recognised. The Spectrum screen is shown instead of a transcript; commands are typed through the emulated keyboard.'); }

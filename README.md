@@ -6,7 +6,7 @@ that works on a phone, tap-to-play options for the exits and things around you,
 hints, and the location illustrations from the 1985 Macintosh version, in colour.
 
 Everything is one self-contained file, `hobbit.html`, with the Sinclair Research
-release of the tape built in: open it and play. Your own tape image (the
+Ltd re-release (1982) of the tape built in: open it and play. Your own tape image (the
 bug-fixed version 1.2, say) can be loaded from the menu and is then remembered by
 the browser. Nothing is uploaded anywhere; saved games stay in the browser's
 storage and can be exported as files.
@@ -36,8 +36,8 @@ image. Instead of showing the Spectrum screen, it hooks the game's own routines:
 
 The built-in tape is whichever image is in `tape/` at build time. Any other copy
 can be loaded from the menu (`.tap`, `.tzx`, or a `.zip` of one; `.z80` and `.sna`
-snapshots also work): version 1.2 is the bug-fixed release, 1.0 the Sinclair
-Research one.
+snapshots also work): version 1.2 is the bug-fixed release; the 1982 releases (Melbourne House's
+own and Sinclair Research Ltd's) share the earlier code.
 
 ## Building
 
