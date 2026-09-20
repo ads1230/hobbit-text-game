@@ -1,3 +1,10 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#000000">
 <title>Hobbit Text Game Spectrum</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,700;1,400&family=Alegreya+Sans:wght@400;500;700&family=Courier+Prime:wght@400;700&display=swap">
 <style>
@@ -41,6 +48,9 @@
   }
   header.bar h1 { margin: 0; font: 700 18px/1.2 var(--serif); letter-spacing: .01em; }
   header.bar .sub { font-size: 12px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+  header.bar > div:first-child { min-width: 0; }
+  .status { white-space: nowrap; }
+  @media (max-width: 480px) { header.bar { gap: 8px; padding-left: 12px; padding-right: 12px; } header.bar .sub { font-size: 11px; letter-spacing: .03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .status span { display: none; } }
   .spacer { flex: 1; }
   .status { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); letter-spacing: .04em; }
   .status i { width: 8px; height: 8px; border-radius: 50%; background: var(--rule-strong); }
@@ -1019,5 +1029,19 @@
   } catch (e) {}
 
   setStatus();
+
+  // On phones the on-screen keyboard shrinks the visible area without always resizing the layout;
+  // fitting the app to the visual viewport keeps the text box in view while typing.
+  if (window.visualViewport) {
+    var app = $('app'), fit = function () {
+      var vv = window.visualViewport;
+      if (Math.abs(window.innerHeight - vv.height) > 40) { app.style.top = vv.offsetTop + 'px'; app.style.height = vv.height + 'px'; app.style.bottom = 'auto'; }
+      else { app.style.top = ''; app.style.height = ''; app.style.bottom = ''; }
+    };
+    window.visualViewport.addEventListener('resize', fit);
+    window.visualViewport.addEventListener('scroll', fit);
+  }
 })();
 </script>
+</body>
+</html>
