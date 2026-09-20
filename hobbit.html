@@ -4634,7 +4634,7 @@ let cycle_counts_dd = [
       dead = false; turnPending = true; follow = true; userAway = false; lastLoc = null; lastCmd = ''; turnText = ''; visitedBits = null;
       updateDeadUI();
     } else if (name === 'dead') {
-      flushLower(); endOut(); dead = true; updateDeadUI();
+      flushLower(); endOut(); dead = true; updateDeadUI(); autosaveSoon();
     } else if (name === 'autowait') {
       flushLower(); endOut(); cmdLine('wait  (the timer ran out)', true); turnPending = true; lastCmd = ''; turnText = '';
     } else if (name === 'loaded') {
@@ -4700,7 +4700,7 @@ let cycle_counts_dd = [
     renderScreen();
     setStatus();
     var waiting = m.parked || (m.idle && !m.inputQueue.length);
-    if (waiting && turnPending) { turnPending = false; refreshChips(); placeMacPicture(lastState); turnText = ''; }
+    if (waiting && turnPending) { turnPending = false; refreshChips(); placeMacPicture(lastState); turnText = ''; autosaveSoon(); }
     if (pendingScrollTarget && waiting) { finishScroll(follow || (wasAtEnd && !userAway)); follow = false; }
     else if (!m.parked && logVersion !== scrolledVersion && (follow || (wasAtEnd && !userAway))) { follow = false; scrolledVersion = logVersion; growthFrames++; scrollToEnd(); }
     if (!m.parked) frameReq = requestAnimationFrame(frame); else { running = false; lastFrame = 0; }
@@ -5104,7 +5104,7 @@ let cycle_counts_dd = [
     return { kind: 'hobbit-web-snapshot', when: Date.now(), version: s.version, entry: s.entry, cpu: s.cpu, border: s.border, tstates: s.tstates,
       parked: s.parked, idle: s.idle, started: s.started, mem: b64(s.mem), transcript: logInner.innerHTML, history: history.slice(-50) };
   }
-  function applySnapshot(snap) {
+  function applySnapshot(snap, message) {
     if (!snap || snap.kind !== 'hobbit-web-snapshot' || !snap.mem) throw new Error('Not a snapshot.');
     var mem = unb64(snap.mem);
     if (!loaded) { m.mem.set(mem); var info = m.prepare({ codeLength: 40000, snapshot: true }); loaded = true; loader.hidden = true; logInner.hidden = false; dock.hidden = false; $('versionInfo').textContent = 'Restored a snapshot (version ' + info.version.replace('v', '') + ').'; }
@@ -5113,10 +5113,40 @@ let cycle_counts_dd = [
     logInner.textContent = ''; restoreTranscript(snap.transcript || ''); curOut = null; curText = null; lowerBuf = '';
     history = snap.history || []; histPos = history.length; dead = false;
     var oldDead = logInner.querySelector('.dead'); if (oldDead) oldDead.remove();
-    sysLine('Snapshot restored.');
+    if (message !== '') sysLine(message || 'Snapshot restored.');
+    if (snap.tapeSource) { tapeSource = snap.tapeSource; updateTapeUI(); }
     setStatus(); renderScreen(); scrollToEnd(); turnPending = true; refreshChips(); lastLoc = lastState ? lastState.location : null; lastCmd = ''; turnText = ''; visitedBits = readVisited();
     if (!m.parked) startRunning();
   }
+
+  // ------------------------------------------------------------ carrying on after a reload
+  // The whole game (machine and transcript) is kept in this browser after every turn, so
+  // reloading the page picks up where you left off. Ejecting the tape or restarting starts afresh.
+  var AUTOSAVE = 'hobbit.autosave', autosaveTimer = null;
+  function autosave() {
+    clearTimeout(autosaveTimer); autosaveTimer = null;
+    if (!loaded) return;
+    try {
+      var snap = makeSnapshot(); snap.tapeSource = tapeSource;
+      try { localStorage.setItem(AUTOSAVE, JSON.stringify(snap)); }
+      catch (e) { // too big: keep only the tail of the transcript
+        var keep = Array.prototype.slice.call(logInner.children, -80).map(function (el) { return el.outerHTML; }).join('');
+        snap.transcript = keep; localStorage.setItem(AUTOSAVE, JSON.stringify(snap));
+      }
+    } catch (e) {}
+  }
+  function autosaveSoon() { clearTimeout(autosaveTimer); autosaveTimer = setTimeout(autosave, 250); }
+  function clearAutosave() { clearTimeout(autosaveTimer); autosaveTimer = null; try { localStorage.removeItem(AUTOSAVE); } catch (e) {} }
+  function restoreAutosave() {
+    try {
+      var snap = JSON.parse(localStorage.getItem(AUTOSAVE));
+      if (!snap || snap.kind !== 'hobbit-web-snapshot') return false;
+      applySnapshot(snap, '');
+      return true;
+    } catch (e) { return false; }
+  }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') autosave(); });
+  window.addEventListener('pagehide', autosave);
   // rebuilds a saved transcript keeping only the elements this page creates
   function restoreTranscript(html) {
     var doc = new DOMParser().parseFromString('<div>' + html + '</div>', 'text/html');
@@ -5192,6 +5222,7 @@ let cycle_counts_dd = [
   armed($('ejectBtn'), 'Tap again to eject', function () {
     closeDrawer();
     loaded = false; if (frameReq) { cancelAnimationFrame(frameReq); frameReq = null; }
+    clearAutosave();
     logInner.hidden = true; dock.hidden = true; loader.hidden = false; setStatus(); updateTapeUI();
     $('fileInput').click();
   });
@@ -5263,11 +5294,12 @@ let cycle_counts_dd = [
     if (hot && typeof hot.snapshot === 'function') hot.snapshot(function () { return loaded ? makeSnapshot() : null; });
     var boot = function (data) {
       if (data && data.kind === 'hobbit-web-snapshot') { try { applySnapshot(data); } catch (e) {} }
+      if (!loaded) restoreAutosave();
       if (!loaded) loadStartingTape();
       updateTapeUI();
     };
     if (hot && typeof hot.ready === 'function') hot.ready(boot); else boot(hot && hot.data);
-  } catch (e) { if (!loaded) { try { loadStartingTape(); } catch (e2) {} } }
+  } catch (e) { if (!loaded) { try { if (!restoreAutosave()) loadStartingTape(); } catch (e2) {} } }
 
   setStatus();
 

@@ -30,8 +30,9 @@ image. Instead of showing the Spectrum screen, it hooks the game's own routines:
   when the game draws them), or the Macintosh illustrations, which appear exactly
   when the original would draw a picture: the first time a place is visited, and
   on `LOOK`.
-- **Saves** — the game's own `SAVE`/`LOAD` go to a tape slot in the browser;
-  snapshots capture the whole machine and the transcript.
+- **Saves** — the game is kept in the browser after every turn, so reloading the
+  page carries on where you were; the game's own `SAVE`/`LOAD` go to a tape slot,
+  and snapshots capture the whole machine and the transcript on demand.
 
 The built-in tape is whichever image is in `tape/` at build time. Any other copy
 can be loaded from the menu (`.tap`, `.tzx`, or a `.zip` of one; `.z80` and `.sna`
