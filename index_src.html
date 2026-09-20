@@ -211,6 +211,7 @@
         <p class="formats" style="margin-top:12px">.tap · .tzx · .zip · .z80 · .sna</p>
         <div class="err" id="loadErr" hidden></div>
       </div>
+      <p style="text-align:center;margin:14px 0 0"><button class="btn quiet small" id="builtinBtn2" type="button" hidden>Use the built-in tape</button></p>
     </div>
     <div id="logInner" hidden></div>
   </div>
@@ -274,11 +275,16 @@
   <h3>Game</h3>
   <div class="row">
     <button class="btn quiet small" id="restartBtn" type="button">Restart the game</button>
-    <button class="btn quiet small" id="ejectBtn" type="button">Load a different tape</button>
+  </div>
+  <h3>Tape</h3>
+  <p class="about" id="tapeInfo" style="margin:0 0 8px"></p>
+  <div class="row">
+    <button class="btn quiet small" id="ejectBtn" type="button">Load your own tape…</button>
+    <button class="btn quiet small" id="builtinBtn" type="button" hidden>Use the built-in tape</button>
   </div>
 
   <h3>About</h3>
-  <p class="about">The Hobbit is © 1982 Melbourne House / Beam Software, written by Philip Mitchell and Veronika Megler. This page contains none of it; you supply the tape. The emulation follows the approach of <a href="https://github.com/efa/Wilderland" target="_blank" rel="noopener">Wilderland</a>, using addresses from <a href="https://github.com/pobtastic/hobbit" target="_blank" rel="noopener">the SkoolKit disassembly</a>, and the Z80 core is Molly Howell's <a href="https://github.com/DrGoldfire/Z80.js" target="_blank" rel="noopener">Z80.js</a> (MIT). Character set from the Spectrum ROM, © Amstrad, used with its permission for emulators.</p>
+  <p class="about">The Hobbit is © 1982 Melbourne House / Beam Software, written by Philip Mitchell and Veronika Megler. The built-in tape is the Sinclair Research release; any other version can be loaded above. The emulation follows the approach of <a href="https://github.com/efa/Wilderland" target="_blank" rel="noopener">Wilderland</a>, using addresses from <a href="https://github.com/pobtastic/hobbit" target="_blank" rel="noopener">the SkoolKit disassembly</a>, and the Z80 core is Molly Howell's <a href="https://github.com/DrGoldfire/Z80.js" target="_blank" rel="noopener">Z80.js</a> (MIT). Character set from the Spectrum ROM, © Amstrad, used with its permission for emulators.</p>
   <p class="about" id="versionInfo"></p>
 </aside>
 <div id="hintScrim"></div>
@@ -787,6 +793,20 @@
     return new Response(blob.stream().pipeThrough(ds)).arrayBuffer().then(function (buf) { return { name: e.name, bytes: new Uint8Array(buf) }; });
   }
 
+  // The tape built into the page, and the one the reader loaded themselves (kept in this browser).
+  var DEFAULT_TAPE = /*__TAPE__*/null, customTape = null, tapeSource = '';
+  try { customTape = JSON.parse(localStorage.getItem('hobbit.customTape')); if (!customTape || !customTape.b64 || !customTape.name) customTape = null; } catch (e) { customTape = null; }
+  function fromB64(b) { return Uint8Array.from(atob(b), function (c) { return c.charCodeAt(0); }); }
+  function toB64(bytes) { var s = ''; for (var i = 0; i < bytes.length; i += 8192) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192)); return btoa(s); }
+  function loadBytes(name, bytes, source) {
+    var lower = name.toLowerCase(), info;
+    if (/\.sna$/.test(lower)) info = m.loadSNA(bytes);
+    else if (/\.z80$/.test(lower)) info = m.loadZ80(bytes);
+    else if (/\.bin$/.test(lower)) info = m.loadBinary(bytes);
+    else info = m.loadTape(bytes);
+    tapeSource = source;
+    begin(info, name);
+  }
   function loadFile(file) {
     var err = $('loadErr'); err.hidden = true;
     file.arrayBuffer().then(function (buf) {
@@ -794,16 +814,33 @@
       if (bytes.length > 3 && bytes[0] === 0x50 && bytes[1] === 0x4b) return unzip(bytes);
       return { name: name, bytes: bytes };
     }).then(function (f) {
-      var name = f.name.toLowerCase(), info;
-      if (/\.sna$/.test(name)) info = m.loadSNA(f.bytes);
-      else if (/\.z80$/.test(name)) info = m.loadZ80(f.bytes);
-      else if (/\.bin$/.test(name)) info = m.loadBinary(f.bytes);
-      else info = m.loadTape(f.bytes);
-      begin(info, f.name);
+      loadBytes(f.name, f.bytes, 'own');
+      // remembered for next time, so a tape of your own stays the one that starts
+      try { customTape = { name: f.name, b64: toB64(f.bytes) }; localStorage.setItem('hobbit.customTape', JSON.stringify(customTape)); } catch (e) {}
+      updateTapeUI();
     }).catch(function (e) {
       err.textContent = 'Could not load that file. ' + (e && e.message ? e.message : '');
       err.hidden = false;
     });
+  }
+  function loadBuiltin() {
+    if (!DEFAULT_TAPE) return false;
+    customTape = null; try { localStorage.removeItem('hobbit.customTape'); } catch (e) {}
+    loadBytes(DEFAULT_TAPE.name, fromB64(DEFAULT_TAPE.b64), 'builtin');
+    updateTapeUI();
+    return true;
+  }
+  // starts whatever tape should play: the reader's own if they loaded one before, else the built-in one
+  function loadStartingTape() {
+    if (customTape) { try { loadBytes(customTape.name, fromB64(customTape.b64), 'own'); updateTapeUI(); return true; } catch (e) { customTape = null; } }
+    return loadBuiltin();
+  }
+  function updateTapeUI() {
+    var showBuiltin = !!DEFAULT_TAPE && (tapeSource !== 'builtin' || !loaded);
+    $('builtinBtn').hidden = !showBuiltin; $('builtinBtn2').hidden = !showBuiltin;
+    $('tapeInfo').textContent = !loaded ? (DEFAULT_TAPE ? 'The built-in tape is ' + DEFAULT_TAPE.name + '.' : 'No tape loaded.')
+      : tapeSource === 'builtin' ? 'Playing the built-in tape, ' + DEFAULT_TAPE.name + '. Your own tape is remembered in this browser once loaded.'
+      : 'Playing your own tape, ' + (customTape ? customTape.name : '') + '.';
   }
 
   function begin(info, name) {
@@ -957,9 +994,11 @@
   armed($('ejectBtn'), 'Tap again to eject', function () {
     closeDrawer();
     loaded = false; if (frameReq) { cancelAnimationFrame(frameReq); frameReq = null; }
-    logInner.hidden = true; dock.hidden = true; loader.hidden = false; setStatus();
+    logInner.hidden = true; dock.hidden = true; loader.hidden = false; setStatus(); updateTapeUI();
     $('fileInput').click();
   });
+  armed($('builtinBtn'), 'Tap again to switch', function () { closeDrawer(); loadBuiltin(); });
+  $('builtinBtn2').addEventListener('click', function () { loadBuiltin(); });
 
   // ------------------------------------------------------------ hints from the walkthrough
   var WALK = /*__WALKTHROUGH__*/null;
@@ -1024,9 +1063,13 @@
   try {
     var hot = window.claude && window.claude.hot;
     if (hot && typeof hot.snapshot === 'function') hot.snapshot(function () { return loaded ? makeSnapshot() : null; });
-    var boot = function (data) { if (data && data.kind === 'hobbit-web-snapshot') { try { applySnapshot(data); } catch (e) {} } };
+    var boot = function (data) {
+      if (data && data.kind === 'hobbit-web-snapshot') { try { applySnapshot(data); } catch (e) {} }
+      if (!loaded) loadStartingTape();
+      updateTapeUI();
+    };
     if (hot && typeof hot.ready === 'function') hot.ready(boot); else boot(hot && hot.data);
-  } catch (e) {}
+  } catch (e) { if (!loaded) { try { loadStartingTape(); } catch (e2) {} } }
 
   setStatus();
 

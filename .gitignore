@@ -6,3 +6,4 @@ macpics.json
 *.z80
 *.sna
 *.zip
+!tape/*

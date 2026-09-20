@@ -25,6 +25,6 @@ SOFTWARE.
 z80.js is Copyright (c) 2013 Molly Howell and is released under the MIT licence;
 see the header of that file.
 
-The Hobbit is (c) Melbourne House / Beam Software. The game program is not part
-of this repository; the location pictures are derived from the 1985 Macintosh
-release. The Spectrum character set is (c) Amstrad plc.
+The Hobbit is (c) Melbourne House / Beam Software: the tape image in tape/ and the
+location pictures (derived from the 1985 Macintosh release) are theirs and are not
+covered by the licence above. The Spectrum character set is (c) Amstrad plc.

@@ -5,9 +5,11 @@ readable text game: a transcript instead of a Spectrum screen, a proper text box
 that works on a phone, tap-to-play options for the exits and things around you,
 hints, and the location illustrations from the 1985 Macintosh version, in colour.
 
-Everything is one self-contained file, `hobbit.html`. Open it, drop your own
-tape image on it, and play. Nothing is uploaded anywhere; saved games stay in the
-browser's storage and can be exported as files.
+Everything is one self-contained file, `hobbit.html`, with the Sinclair Research
+release of the tape built in: open it and play. Your own tape image (the
+bug-fixed version 1.2, say) can be loaded from the menu and is then remembered by
+the browser. Nothing is uploaded anywhere; saved games stay in the browser's
+storage and can be exported as files.
 
 ## How it works
 
@@ -32,9 +34,10 @@ image. Instead of showing the Spectrum screen, it hooks the game's own routines:
 - **Saves** — the game's own `SAVE`/`LOAD` go to a tape slot in the browser;
   snapshots capture the whole machine and the transcript.
 
-It ships no Spectrum game data. Load your own copy of the tape (`.tap`, `.tzx`,
-or a `.zip` of one; `.z80` and `.sna` snapshots also work). Version 1.2 is the
-bug-fixed release; the 1.0 Sinclair Research tape also runs.
+The built-in tape is whichever image is in `tape/` at build time. Any other copy
+can be loaded from the menu (`.tap`, `.tzx`, or a `.zip` of one; `.z80` and `.sna`
+snapshots also work): version 1.2 is the bug-fixed release, 1.0 the Sinclair
+Research one.
 
 ## Building
 
@@ -48,6 +51,7 @@ python3 build.py        # inlines the JS, the character set, the hints and the p
 | `machine.js` | the Spectrum machine, the game hooks and the readers for the game's data |
 | `z80.js` | Molly Howell's Z80 core (MIT), with register accessors added |
 | `charset/` | the 768-byte Spectrum character set the game prints with |
+| `tape/` | the tape image built into the page |
 | `walkthrough.json` | the hints, produced by `test/walkthrough.js` |
 | `locpics/` | one picture per location, named `<room number> <description>.png` |
 | `locpics.json` | the pictures packed for the page, produced by `tools/locpics.py locpics` |
@@ -73,8 +77,8 @@ drawings of the same places.
 ## Credits and rights
 
 - *The Hobbit* is © Melbourne House / Beam Software (Philip Mitchell, Veronika
-  Megler; graphics Kent Rees). The game program is not included; the
-  illustrations are derived from the Macintosh release.
+  Megler; graphics Kent Rees). The tape image and the illustrations (derived from
+  the Macintosh release) are theirs.
 - The Z80 core is © Molly Howell, MIT licence.
 - The Spectrum character set is © Amstrad plc, who permit its distribution for
   emulation.
