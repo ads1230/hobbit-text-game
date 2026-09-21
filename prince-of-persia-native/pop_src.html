@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="color-scheme" content="dark">
+<title>Prince of Persia</title>
+<meta name="description" content="The 1989 Apple II Prince of Persia, re-implemented natively in JavaScript from the original 6502 source, with touch controls.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700&family=Courier+Prime:wght@400;700&display=swap">
+<style>
+  :root {
+    --bg: #0B0A10; --panel: #16151D; --panel-2: #1F1D28; --ink: #ECE6D8; --ink-soft: #BDB5A5; --muted: #7E786C; --rule: #2A2834; --rule-strong: #3B3848;
+    --accent: #D9A441; --accent-ink: #1A1206; --accent-soft: #3A2E14; --danger: #E07A6A;
+    --sans: 'Alegreya Sans', 'Gill Sans', 'Segoe UI', system-ui, sans-serif; --mono: 'Courier Prime', 'Courier New', Courier, monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #0B0A10; } }
+  :root[data-theme="dark"] { --bg: #0B0A10; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 15px; overflow: hidden; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; touch-action: none; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  #app { position: fixed; inset: 0; display: grid; grid-template-columns: 1fr auto 1fr; grid-template-rows: 1fr; align-items: center; justify-items: center; padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
+  #controls { display: contents; }
+  #left, #right { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+  #left { grid-column: 1; grid-row: 1; } #stage { grid-column: 2; grid-row: 1; } #right { grid-column: 3; grid-row: 1; }
+  #stage { position: relative; background: #000; box-shadow: 0 0 0 1px #000, 0 20px 60px rgba(0,0,0,.6); }
+  #stage canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
+  #app.portrait { grid-template-columns: 1fr; grid-template-rows: auto 1fr; align-items: start; padding-top: calc(46px + env(safe-area-inset-top, 0px)); }
+  #app.portrait #stage { grid-column: 1; grid-row: 1; }
+  #app.portrait #controls { display: flex; grid-column: 1; grid-row: 2; width: 100%; height: 100%; align-items: center; justify-content: space-between; padding: 10px 6vw 12px; }
+  #app.portrait #left, #app.portrait #right { width: auto; height: auto; }
+  #app.nopad #left, #app.nopad #right { display: none; }
+  #app.nopad.portrait #controls { display: none; }
+  #app.nopad { grid-template-columns: 1fr; } #app.nopad #stage { grid-column: 1; }
+
+  #dpad { position: relative; width: var(--pad, 150px); height: var(--pad, 150px); border-radius: 50%; background: radial-gradient(circle at 50% 40%, #2A2836, #16151D 70%); box-shadow: inset 0 0 0 1px var(--rule-strong), 0 6px 20px rgba(0,0,0,.5); touch-action: none; }
+  #dpad .arrow { position: absolute; width: 26%; height: 26%; display: grid; place-items: center; color: rgba(236,230,216,.45); font-size: calc(var(--pad, 150px) * .13); pointer-events: none; transition: color .05s, transform .05s; }
+  #dpad .arrow.on { color: var(--accent); transform: scale(1.15); }
+  #dpad .arrow[data-d="u"] { left: 37%; top: 3%; } #dpad .arrow[data-d="d"] { left: 37%; top: 71%; }
+  #dpad .arrow[data-d="l"] { left: 3%; top: 37%; } #dpad .arrow[data-d="r"] { left: 71%; top: 37%; }
+  #dpad .arrow[data-d="ul"] { left: 12%; top: 12%; } #dpad .arrow[data-d="ur"] { left: 62%; top: 12%; }
+  #dpad .arrow[data-d="dl"] { left: 12%; top: 62%; } #dpad .arrow[data-d="dr"] { left: 62%; top: 62%; }
+  #dpad .arrow[data-d="ul"], #dpad .arrow[data-d="ur"], #dpad .arrow[data-d="dl"], #dpad .arrow[data-d="dr"] { font-size: calc(var(--pad, 150px) * .1); }
+  #dpad .hub { position: absolute; left: 37%; top: 37%; width: 26%; height: 26%; border-radius: 50%; background: #0F0E14; box-shadow: inset 0 0 0 1px var(--rule-strong); }
+  #action { width: var(--btn, 110px); height: var(--btn, 110px); border-radius: 50%; border: 0; background: radial-gradient(circle at 50% 35%, #4A3A16, #2C2310 70%); box-shadow: inset 0 0 0 2px var(--accent-soft), 0 6px 20px rgba(0,0,0,.5); color: var(--accent); font-weight: 700; font-size: calc(var(--btn, 110px) * .16); letter-spacing: .06em; text-transform: uppercase; touch-action: none; }
+  #action.on { background: radial-gradient(circle at 50% 35%, #E2B455, #B27F22 70%); color: var(--accent-ink); box-shadow: inset 0 0 0 2px #F3D58A, 0 2px 8px rgba(0,0,0,.5); }
+  #action small { display: block; font-weight: 500; letter-spacing: .04em; text-transform: none; opacity: .75; margin-top: 3px; }
+
+  #corner { position: fixed; top: calc(6px + env(safe-area-inset-top, 0px)); right: calc(8px + env(safe-area-inset-right, 0px)); display: flex; gap: 6px; z-index: 20; }
+  .iconbtn { border: 1px solid var(--rule-strong); background: rgba(22,21,29,.85); border-radius: 8px; width: 38px; height: 34px; display: inline-grid; place-items: center; color: var(--ink); flex: none; backdrop-filter: blur(6px); }
+  .iconbtn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  #toast { position: fixed; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%) translateY(20px); background: var(--panel-2); color: var(--ink); border: 1px solid var(--rule-strong); border-radius: 10px; padding: 9px 14px; font-size: 14px; opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none; z-index: 40; max-width: 90vw; text-align: center; }
+  #toast.show { opacity: 1; transform: translateX(-50%); }
+  #overlay { position: fixed; inset: 0; background: rgba(11,10,16,.78); display: flex; align-items: center; justify-content: center; z-index: 30; padding: 16px; backdrop-filter: blur(3px); }
+  #overlay .card { background: var(--panel); border: 1px solid var(--rule-strong); border-radius: 14px; padding: 22px 22px 18px; max-width: 420px; width: 100%; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+  #overlay h1 { margin: 0 0 4px; font: 700 26px/1.1 var(--sans); letter-spacing: .01em; }
+  #overlay .sub { color: var(--muted); font-size: 13px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 14px; }
+  #overlay p { margin: 8px 0; color: var(--ink-soft); line-height: 1.45; }
+  .bigbtn { display: block; width: 100%; margin-top: 10px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--rule-strong); background: var(--panel-2); color: var(--ink); font-weight: 700; text-align: left; }
+  .bigbtn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .bigbtn small { display: block; font-weight: 400; color: inherit; opacity: .75; font-size: 13px; margin-top: 2px; }
+
+  #scrim { position: fixed; inset: 0; background: rgba(0,0,0,.5); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 30; }
+  #scrim.open { opacity: 1; pointer-events: auto; }
+  #drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(360px, 92vw); background: var(--panel); border-left: 1px solid var(--rule); transform: translateX(100%); transition: transform .22s; z-index: 31; overflow-y: auto; padding: calc(14px + env(safe-area-inset-top, 0px)) 18px calc(20px + env(safe-area-inset-bottom, 0px)); }
+  #drawer.open { transform: none; }
+  #drawer h2 { font: 700 20px/1.2 var(--sans); margin: 0 0 2px; display: flex; align-items: center; }
+  #drawer .sub { color: var(--muted); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 14px; }
+  #drawer h3 { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 20px 0 8px; font-weight: 700; }
+  .seg { display: inline-flex; border: 1px solid var(--rule-strong); border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0; background: transparent; padding: 7px 12px; color: var(--ink-soft); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+  .setting { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--rule); }
+  .setting .lbl { font-weight: 500; flex: 1; min-width: 0; }
+  .setting .lbl small { display: block; font-weight: 400; color: var(--muted); font-size: 12.5px; }
+  .about { font-size: 13.5px; color: var(--ink-soft); line-height: 1.5; }
+  .about a { color: var(--accent); }
+  .keys { font: 13px/1.6 var(--mono); color: var(--ink-soft); }
+  .keys b { color: var(--ink); }
+  .menubtn { display: block; width: 100%; margin-top: 8px; padding: 10px 12px; border-radius: 9px; border: 1px solid var(--rule-strong); background: var(--panel-2); color: var(--ink); font-weight: 600; text-align: left; }
+  .menubtn small { display: block; font-weight: 400; color: var(--muted); font-size: 12.5px; margin-top: 1px; }
+  .menubtn.danger { color: var(--danger); }
+  .levels { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 8px; }
+  .levels button { border: 1px solid var(--rule-strong); background: var(--panel-2); border-radius: 8px; padding: 8px 0; font-weight: 700; }
+</style>
+</head>
+<body>
+<div id="app" class="landscape">
+  <div id="stage"><canvas id="screen" width="560" height="192"></canvas></div>
+  <div id="controls">
+    <div id="left">
+      <div id="dpad" aria-label="Direction pad">
+        <span class="arrow" data-d="ul">◤</span><span class="arrow" data-d="u">▲</span><span class="arrow" data-d="ur">◥</span>
+        <span class="arrow" data-d="l">◀</span><span class="hub"></span><span class="arrow" data-d="r">▶</span>
+        <span class="arrow" data-d="dl">◣</span><span class="arrow" data-d="d">▼</span><span class="arrow" data-d="dr">◢</span>
+      </div>
+    </div>
+    <div id="right"><button id="action" aria-label="Action button">Action<small>hold: careful</small></button></div>
+  </div>
+</div>
+<div id="corner">
+  <button class="iconbtn" id="btnMenu" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<div id="overlay">
+  <div class="card">
+    <h1>Prince of Persia</h1>
+    <div class="sub">Apple II · Brøderbund, 1989 · native</div>
+    <p id="overlayText">The Apple II game, rebuilt in JavaScript from Jordan Mechner's original 6502 source and drawn exactly as the Apple drew it. Move with the pad; hold Action to grab ledges, step carefully and fight.</p>
+    <button class="bigbtn primary" id="btnStart">Start<small>The title, the story, then the game. Tap the screen to skip ahead.</small></button>
+    <button class="bigbtn" id="btnContinue" hidden>Continue the saved game<small id="continueInfo"></small></button>
+  </div>
+</div>
+
+<div id="scrim"></div>
+<aside id="drawer" aria-label="Menu">
+  <h2>Prince of Persia<span style="flex:1"></span><button class="iconbtn" id="btnClose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h2>
+  <div class="sub">Apple II · 1989 · native port</div>
+  <p class="about" style="margin:0 0 6px">The game is paused while this menu is open.</p>
+
+  <h3>Game</h3>
+  <button class="menubtn" id="mResume">Resume<small>Close the menu and carry on</small></button>
+  <button class="menubtn" id="mTime">Show time left<small>Space on the Apple</small></button>
+  <button class="menubtn" id="mRestart">Restart this level<small>Ctrl-A on the Apple</small></button>
+  <button class="menubtn" id="mSaveGame">Save the game<small>Ctrl-G on the Apple: from level 3, the level and the clock are kept here</small></button>
+  <button class="menubtn" id="mTitle">Back to the title<small>Ctrl-R on the Apple</small></button>
+
+  <h3>Start at a level</h3>
+  <div class="levels" id="levels"></div>
+
+  <h3>Settings</h3>
+  <div class="setting"><div class="lbl">Sound effects</div><div class="seg" id="segSound"><button data-v="on">On</button><button data-v="off">Off</button></div></div>
+  <div class="setting"><div class="lbl">Music<small>The game waits while a tune plays, as the Apple did</small></div><div class="seg" id="segMusic"><button data-v="on">On</button><button data-v="off">Off</button></div></div>
+  <div class="setting"><div class="lbl">Display<small>Colour as on an NTSC monitor, or a green monochrome</small></div><div class="seg" id="segMono"><button data-v="colour">Colour</button><button data-v="mono">Mono</button></div></div>
+  <div class="setting"><div class="lbl">Touch controls</div><div class="seg" id="segPad"><button data-v="on">Shown</button><button data-v="off">Hidden</button></div></div>
+
+  <h3>Keys</h3>
+  <div class="keys">
+    <b>Arrows</b> or <b>J L I K</b> move · <b>U O</b> jump diagonally<br>
+    <b>Shift</b>, <b>Alt</b> or <b>Z</b> is the button (grab, careful step)<br>
+    <b>Esc</b> pauses (Esc again steps a frame) · <b>Space</b> shows the time left<br>
+    <b>Ctrl-A</b> restart level · <b>Ctrl-R</b> title · <b>Ctrl-S</b> sound · <b>Ctrl-N</b> music<br>
+    <b>Ctrl-G</b> save (from level 3) · <b>Ctrl-L</b> at the title continues the saved game
+  </div>
+
+  <h3>About</h3>
+  <p class="about">Jordan Mechner's <i>Prince of Persia</i> (Brøderbund, 1989), rebuilt in JavaScript from his published Apple II source: the same sequence tables, frame definitions, collision rules, guard programs, level blueprints and image tables, drawn with the same hi-res routines. Every frame has been checked byte for byte against the game running on an Apple IIe emulator. The music and sounds are recordings of the Apple's speaker.</p>
+</aside>
+
+<script>/*__JS__*/</script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var DATA = /*__DATA__*/null, PICS = /*__PICS__*/null, AUDIO = /*__AUDIO__*/null;
+  var CPU_HZ = 1020484;
+  function b64(s) { var bin = atob(s), out = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i); return out; }
+
+  // ---------------------------------------------------------------- settings
+  var settings = { sound: 'on', music: 'on', mono: 'colour', pad: 'on' };
+  try { var s0 = JSON.parse(localStorage.getItem('popn.settings') || '{}'); Object.keys(s0).forEach(function (k) { settings[k] = s0[k]; }); } catch (e) { }
+  function saveSettings() { try { localStorage.setItem('popn.settings', JSON.stringify(settings)); } catch (e) { } }
+
+  // ---------------------------------------------------------------- the engine's data
+  var images = {};
+  Object.keys(DATA.images).forEach(function (k) { images[k] = DATA.images[k].map(function (e) { return { w: e[0], h: e[1], data: b64(e[2]) }; }); });
+  POP.data = { images: images, levels: DATA.levels.map(b64), seq: b64(DATA.seq.data), seqLabels: DATA.seq.labels, framedef: b64(DATA.framedef.data), FD: DATA.framedef, proom: b64(PICS.proom), pics: PICS };
+  POP.audio = { ticks: AUDIO.ticks, seconds: {} };
+  ['game', 'title', 'cut', 'epilog'].forEach(function (set) { POP.audio.seconds[set] = {}; Object.keys(AUDIO[set] || {}).forEach(function (k) { POP.audio.seconds[set][k] = AUDIO[set][k].cycles / AUDIO.cpuHz; }); });
+  POP.state.loadData(POP.data);
+  var ST = POP.state, S = ST.S, T = POP.top, HR = POP.hires;
+
+  // ---------------------------------------------------------------- the screen: hi-res pages and double hi-res pictures at 560x192
+  var canvas = $('screen'), ctx = canvas.getContext('2d'), image = ctx.createImageData(560, 192), px = image.data;
+  var HI = { white: [255, 255, 255], violet: [221, 68, 221], green: [40, 200, 60], blue: [40, 150, 240], orange: [240, 120, 40] };
+  var MONO = [96, 255, 128];
+  var bits = new Uint8Array(282), hb = new Uint8Array(282), rowbuf = new Uint8Array(40 * 192);
+  function drawHires(page) {
+    HR.rows(page === 1 ? 0 : 0x20, rowbuf);
+    var mono = settings.mono === 'mono';
+    for (var y = 0; y < 192; y++) {
+      var off = y * 40;
+      for (var c = 0; c < 40; c++) { var b = rowbuf[off + c]; for (var i = 0; i < 7; i++) { bits[1 + c * 7 + i] = (b >> i) & 1; hb[1 + c * 7 + i] = b >> 7; } }
+      bits[0] = 0; bits[281] = 0;
+      var p = y * 560 * 4;
+      for (var x = 0; x < 280; x++, p += 8) {
+        var i2 = x + 1, col = null;
+        if (mono) { if (bits[i2]) col = MONO; }
+        else if (bits[i2]) col = (bits[i2 - 1] || bits[i2 + 1]) ? HI.white : ((x & 1) ? (hb[i2] ? HI.orange : HI.green) : (hb[i2] ? HI.blue : HI.violet));
+        else if (bits[i2 - 1] && bits[i2 + 1]) col = ((x - 1) & 1) ? (hb[i2] ? HI.orange : HI.green) : (hb[i2] ? HI.blue : HI.violet);
+        var r = col ? col[0] : 0, g = col ? col[1] : 0, bl = col ? col[2] : 0;
+        px[p] = r; px[p + 1] = g; px[p + 2] = bl; px[p + 3] = 255; px[p + 4] = r; px[p + 5] = g; px[p + 6] = bl; px[p + 7] = 255;
+      }
+    }
+    ctx.putImageData(image, 0, 0);
+  }
+  var DHPAL = [[0, 0, 0], [227, 30, 96], [96, 78, 189], [255, 68, 253], [0, 163, 96], [156, 156, 156], [20, 207, 253], [208, 195, 255], [96, 114, 3], [255, 106, 60], [156, 156, 156], [255, 160, 208], [20, 245, 60], [208, 221, 141], [114, 255, 208], [255, 255, 255]];
+  var dhbits = new Uint8Array(564);
+  function drawDHGR(pic) {
+    var main = pic.mainU8 || (pic.mainU8 = b64(pic.main)), aux = pic.auxU8 || (pic.auxU8 = b64(pic.aux)), mono = settings.mono === 'mono';
+    for (var y = 0; y < 192; y++) {
+      var off = (y & 7) * 0x400 + ((y >> 3) & 7) * 0x80 + (y >> 6) * 0x28, q = 0;
+      for (var c = 0; c < 40; c++) { var a = aux[off + c], m = main[off + c]; for (var i = 0; i < 7; i++) dhbits[q++] = (a >> i) & 1; for (i = 0; i < 7; i++) dhbits[q++] = (m >> i) & 1; }
+      var p = y * 560 * 4;
+      for (var x = 0; x < 560; x++, p += 4) {
+        var k = x - (x & 3), v = 0; for (i = 0; i < 4; i++) v |= dhbits[k + i] << i;
+        var rot = k & 3, idx = ((v << rot) | (v >> (4 - rot))) & 15, col = mono ? (dhbits[x] ? MONO : DHPAL[0]) : DHPAL[idx];
+        px[p] = col[0]; px[p + 1] = col[1]; px[p + 2] = col[2]; px[p + 3] = 255;
+      }
+    }
+    ctx.putImageData(image, 0, 0);
+  }
+  function fill(r, g, b) { ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')'; ctx.fillRect(0, 0, 560, 192); }
+  var LORES = [[0, 0, 0], [227, 30, 96], [96, 78, 189], [255, 68, 253], [0, 163, 96], [156, 156, 156], [20, 207, 253], [208, 195, 255], [96, 114, 3], [255, 106, 60], [156, 156, 156], [255, 160, 208], [20, 245, 60], [208, 221, 141], [114, 255, 208], [255, 255, 255]];
+  var shown = { page: 1, kind: 'flip' };
+  function repaint() { if (shown.pic) drawDHGR(shown.pic); else if (shown.kind === 'flip') drawHires(shown.page); else if (shown.kind === 'flashon') { var c = LORES[shown.color & 15]; fill(c[0], c[1], c[2]); } else fill(0, 0, 0); }
+  T.events.show = function (page, kind) {
+    shown.pic = null;
+    if (kind === 'flip') { shown.page = page; shown.kind = 'flip'; }
+    else if (kind === 'flashon') { shown.kind = 'flashon'; shown.color = S.scrncolor; }
+    else if (kind === 'flashoff') { shown.kind = 'flip'; shown.page = page; }
+    else shown.kind = 'black';
+    repaint();
+  };
+
+  // ---------------------------------------------------------------- sound: the Apple's speaker, as recorded
+  var audio = { ctx: null, buffers: {}, current: null, sfxAt: 0 };
+  function startAudio() { if (audio.ctx) { if (audio.ctx.state === 'suspended') audio.ctx.resume(); return; } var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; audio.ctx = new AC(); }
+  // the toggle times (deltas in cycles, as 32-bit values) become a square wave
+  function bufferFor(rec) {
+    if (rec.buffer) return rec.buffer;
+    var d = new Uint32Array(b64(rec.data).buffer), sr = audio.ctx.sampleRate, total = rec.cycles / CPU_HZ, n = Math.ceil(total * sr) + 1;
+    var buf = audio.ctx.createBuffer(1, n, sr), out = buf.getChannelData(0), t = 0, level = 0.5, pos = 0, dc = 0;
+    for (var i = 0; i < d.length; i++) {
+      t += d[i]; var upto = Math.min(n, Math.floor(t / CPU_HZ * sr));
+      for (; pos < upto; pos++) { dc += (level - dc) * 0.0015; out[pos] = (level - dc) * 0.6; }
+      level = -level;
+    }
+    for (; pos < n; pos++) { dc += (level - dc) * 0.0015; out[pos] = (level - dc) * 0.6; }
+    rec.buffer = buf; return buf;
+  }
+  function playRec(rec, when) { if (!audio.ctx) return null; var src = audio.ctx.createBufferSource(); src.buffer = bufferFor(rec); src.connect(audio.ctx.destination); src.start(when || 0); return src; }
+  function stopSong() { if (audio.current) { try { audio.current.stop(); } catch (e) { } audio.current = null; } }
+  function playSong(set, n) {
+    stopSong();
+    if (!(S.soundon && S.musicon)) return 0;
+    var rec = (AUDIO[set] && AUDIO[set][n]) || (set === 'cut' && AUDIO.game[n]); if (!rec || !audio.ctx) return 0;
+    audio.current = playRec(rec); return rec.cycles / CPU_HZ;
+  }
+  // the effects of a frame play one after the other, the last added first, as the Apple did
+  POP.sound.events.play = function (list) {
+    if (!audio.ctx) return;
+    var t = Math.max(audio.ctx.currentTime, audio.sfxAt);
+    for (var i = list.length - 1; i >= 0; i--) { var rec = AUDIO.sfx[list[i]]; if (!rec) continue; playRec(rec, t); t += rec.cycles / CPU_HZ; }
+    audio.sfxAt = t;
+  };
+  T.events.tone = function () { if (audio.ctx && S.soundon) playRec(AUDIO.sfx[3]); };
+
+  // ---------------------------------------------------------------- the clock: game frames, and the waits while music plays
+  // A frame lasts as long as the Apple took to draw it: a base of 26.5 ms plus the drawing, at the cost per byte
+  // of each hi-res primitive (fitted against the game running in the emulator: 6 ms r.m.s. over 43-760 ms frames).
+  // So a screen change takes its 0.6 s, a busy screen with a guard runs slower than an empty corridor, as it did.
+  var COST = { gen: 0.0573, mask: 0.1256, xor: 0.0573, fast: 0.0488, fmask: 0.0988, black: 0.0392, rsave: 0, cls: 0.0168, copy: 0 }, BASE_MS = 26.5;
+  function frameCost() { var w = HR.work, ms = BASE_MS; for (var k in COST) { ms += w[k] * COST[k]; w[k] = 0; } return Math.min(ms, 900); }
+  var running = false, holdUntil = 0, acc = 0, lastNow = 0, due = 50, cutSongMs = 0;
+  T.events.song = function (song) {                                  // in the game: the world stands still while the tune plays
+    var secs = playSong('game', song); holdUntil = performance.now() + secs * 1000;
+  };
+  // in the princess's room a tune is spread over the page's frames: the frame period follows the recording's length
+  POP.cut.events.song = function (set, n, secs, frames) { playSong(set, n); cutSongMs = frames ? secs * 1000 / frames : 0; };
+  POP.cut.events.songEnd = function () { stopSong(); cutSongMs = 0; };
+  function nextDue() {
+    var m = T.mode(), ms = frameCost();
+    if (m === 'cut') return cutSongMs || (ms + S.SPEED * 1.29);       // (the room's frames end with PAUSE, 1.29 ms a count)
+    if (m === 'game') return ms;
+    return 50;
+  }
+  function loop(now) {
+    if (!running) return;
+    requestAnimationFrame(loop);
+    if (!lastNow) lastNow = now;
+    var dt = Math.min(now - lastNow, 200); lastNow = now;
+    if (now < holdUntil) return;
+    acc += dt;
+    var guard = 0;
+    while (acc >= due && guard++ < 4) {
+      acc -= due;
+      step(); due = nextDue();
+      if (now < holdUntil) { acc = 0; break; }
+    }
+  }
+  function step() {
+    var mode = T.mode();
+    if (mode === 'game' || mode === 'cut') { try { T.tick(); } catch (e) { console.error(e); toast('Something went wrong: ' + e.message); running = false; } }
+    else if (mode === 'title') attract.tick();
+  }
+  function start() { if (running) return; running = true; lastNow = 0; acc = 0; requestAnimationFrame(loop); }
+  function stop() { running = false; }
+
+  // ---------------------------------------------------------------- the title sequence (MASTER.S's attract mode)
+  // The order and the waits are the Apple's, measured with tools/timeline.js; only the dark pauses while it read
+  // the next part from the disk (about ten seconds each) are shortened.
+  var attract = { steps: [], i: 0, until: 0, waiting: null };
+  function pic(name, ms) { return { pic: name, ms: ms }; }
+  function songStep(n, after) { return { song: n, after: after || 0 }; }   // a tune, then `after` ms more of the same picture
+  function wait(ms) { return { wait: ms }; }
+  attract.build = function () {
+    attract.steps = [
+      pic('splash', 1650), pic('presents', 0), songStep(1, 300), pic('splash', 1350), pic('byline', 0), songStep(2, 300), pic('splash', 1750),
+      pic('title', 0), songStep(3, 1800), pic('prolog', 0), songStep(4, 0), { black: 2000 }, { cut: 0 }, { black: 2000 },
+      pic('sumup', 0), songStep(5, 850), pic('splash', 1400), pic('title', 5100), { demo: true }];
+    attract.i = 0; attract.until = 0; attract.waiting = null;
+  };
+  attract.tick = function () {
+    var now = performance.now();
+    if (attract.waiting) { if (now < attract.until) return; attract.waiting = null; attract.i++; }
+    if (attract.i >= attract.steps.length) { attract.i = 0; }
+    var st = attract.steps[attract.i];
+    if (st.pic) { shown.pic = PICS[st.pic]; shown.kind = 'pic'; repaint(); attract.waiting = st; attract.until = now + st.ms; if (!st.ms) { attract.waiting = null; attract.i++; } return; }
+    if (st.song) { var secs = playSong('title', st.song); if (!secs) secs = 1.5; attract.waiting = st; attract.until = now + secs * 1000 + st.after; return; }
+    if (st.black) { shown.pic = null; shown.kind = 'black'; repaint(); attract.waiting = st; attract.until = now + st.black; return; }
+    if (st.cut !== undefined) { attract.i++; attract.fromCut = true; T.startCut(0, function () { T.attractmode(); }); return; }
+    if (st.demo) { attract.i++; T.START(0); return; }
+  };
+  T.events.mode = function (m) {
+    if (m === 'title') { stopSong(); if (!attract.fromCut) attract.build(); else attract.fromCut = false; }
+    if (m === 'won') { stopSong(); epilog(); }
+  };
+  // a key or a tap at the title starts a new game (ctrl-L continues the saved one)
+  function titleKey(code) {
+    if (T.mode() !== 'title' && !(T.mode() === 'cut' && S.level === 0 && attract.i > 0)) return false;
+    stopSong();
+    if (code === 0x0C && loadSave()) return true;
+    T.runJumps(function () { T.START(1); });
+    return true;
+  }
+  // the ending, as measured: the epilog picture with its tune, then the splash with the second, then dark and the title
+  function epilog() {
+    var steps = [{ black: true, ms: 2000 }, { pic: 'epilog', ms: 0 }, { song: 1, set: 'epilog', after: 2200 }, { pic: 'splash', ms: 0 }, { song: 2, set: 'epilog', after: 1500 }, { black: true, ms: 1500 }];
+    var i = 0;
+    function next() {
+      if (i >= steps.length) { T.setmode('title'); return; }
+      var st = steps[i++];
+      if (st.pic) { shown.pic = PICS[st.pic]; shown.kind = 'pic'; repaint(); setTimeout(next, st.ms); }
+      else if (st.song) { var secs = playSong(st.set, st.song) || 3; setTimeout(next, secs * 1000 + st.after); }
+      else { shown.pic = null; shown.kind = 'black'; repaint(); setTimeout(next, st.ms); }
+    }
+    next();
+  }
+
+  // ---------------------------------------------------------------- input
+  var held = [];
+  function pressKey(code, id) {
+    id = id || ('k' + code);
+    var i = held.findIndex(function (h) { return h.id === id; }); if (i >= 0) held.splice(i, 1);
+    held.push({ id: id, code: code });
+    if (titleKey(code)) return;
+    T.input.key = code; T.input.strobe = true; T.input.down = true;
+  }
+  function releaseKey(id) {
+    var i = held.findIndex(function (h) { return h.id === id; }); if (i < 0) return;
+    held.splice(i, 1);
+    if (held.length) { T.input.key = held[held.length - 1].code; T.input.strobe = true; T.input.down = true; } else T.input.down = false;
+  }
+  function tapKey(code) { pressKey(code, 'tap'); setTimeout(function () { releaseKey('tap'); }, 60); }
+  function setButton(on) { T.input.btn0 = on; $('action').classList.toggle('on', on); }
+
+  var dpad = $('dpad'), padTouch = null, padDir = null, arrows = {};
+  Array.prototype.forEach.call(dpad.querySelectorAll('.arrow'), function (a) { arrows[a.dataset.d] = a; });
+  var DIR_KEY = { u: 0x49, d: 0x4B, l: 0x4A, r: 0x4C, ul: 0x55, ur: 0x4F, dl: 0x4B, dr: 0x4B };
+  function padDirection(x, y) {
+    var r = dpad.getBoundingClientRect(), dx = (x - (r.left + r.width / 2)) / (r.width / 2), dy = (y - (r.top + r.height / 2)) / (r.height / 2);
+    var dist = Math.hypot(dx, dy); if (dist < 0.22) return null;
+    var ang = Math.atan2(-dy, dx) * 180 / Math.PI; if (ang < 0) ang += 360;
+    return ['r', 'ur', 'u', 'ul', 'l', 'dl', 'd', 'dr'][Math.round(ang / 45) % 8];
+  }
+  function setPadDir(d) {
+    if (d === padDir) return;
+    if (padDir) { arrows[padDir].classList.remove('on'); releaseKey('pad'); }
+    padDir = d;
+    if (d) { arrows[d].classList.add('on'); pressKey(DIR_KEY[d], 'pad'); }
+  }
+  dpad.addEventListener('pointerdown', function (e) { e.preventDefault(); if (padTouch !== null) return; padTouch = e.pointerId; dpad.setPointerCapture(e.pointerId); wake(); setPadDir(padDirection(e.clientX, e.clientY)); });
+  dpad.addEventListener('pointermove', function (e) { if (e.pointerId !== padTouch) return; e.preventDefault(); setPadDir(padDirection(e.clientX, e.clientY)); });
+  function padUp(e) { if (e.pointerId !== padTouch) return; padTouch = null; setPadDir(null); }
+  dpad.addEventListener('pointerup', padUp); dpad.addEventListener('pointercancel', padUp); dpad.addEventListener('lostpointercapture', padUp);
+  var action = $('action');
+  action.addEventListener('pointerdown', function (e) { e.preventDefault(); action.setPointerCapture(e.pointerId); wake(); setButton(true); if (T.mode() === 'title') titleKey(0x8D); });
+  function actionUp() { setButton(false); }
+  action.addEventListener('pointerup', actionUp); action.addEventListener('pointercancel', actionUp); action.addEventListener('lostpointercapture', actionUp);
+  action.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  dpad.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  $('stage').addEventListener('pointerdown', function (e) { e.preventDefault(); wake(); if (started) tapKey(0x0D); });
+
+  var ARROW = { ArrowLeft: 0x4A, ArrowRight: 0x4C, ArrowUp: 0x49, ArrowDown: 0x4B };
+  var BUTTON_KEYS = { Shift: 1, Alt: 1, AltGraph: 1, z: 1, Z: 1 };
+  document.addEventListener('keydown', function (e) {
+    if (drawer.classList.contains('open') || $('overlay').style.display !== 'none') { if (e.key === 'Escape') closeDrawer(); return; }
+    var k = e.key, code = null;
+    if (BUTTON_KEYS[k]) { setButton(true); e.preventDefault(); return; }
+    if (ARROW[k]) code = ARROW[k];
+    else if (k === 'Escape') code = 0x1B;
+    else if (k === 'Enter') code = 0x0D;
+    else if (k === ' ') code = 0x20;
+    else if (k.length === 1) { var c = k.charCodeAt(0); if (c >= 0x20 && c < 0x7F) { code = c; if (e.ctrlKey || e.metaKey) { if (/[a-z]/i.test(k)) code = c & 0x1F; else return; } else if (/[a-z]/.test(k)) code = c - 32; } }
+    if (code === null) return;
+    e.preventDefault(); wake();
+    if (e.repeat) return;
+    pressKey(code, 'key:' + e.code);
+  });
+  document.addEventListener('keyup', function (e) { if (BUTTON_KEYS[e.key]) { setButton(false); return; } releaseKey('key:' + e.code); });
+  window.addEventListener('blur', function () { held.length = 0; T.input.down = false; setButton(false); setPadDir(null); });
+
+  // ---------------------------------------------------------------- layout
+  var app = $('app'), stage = $('stage');
+  function layout() {
+    var W = window.innerWidth, H = window.innerHeight, portrait = H > W * 0.9, pad = settings.pad === 'on';
+    app.classList.toggle('portrait', portrait); app.classList.toggle('landscape', !portrait); app.classList.toggle('nopad', !pad);
+    var sw, sh;
+    if (portrait) {
+      sw = W; sh = sw * 3 / 4; if (pad && H - sh < 150) { sh = H - 150; sw = sh * 4 / 3; }
+      if (!pad && sh > H) { sh = H; sw = sh * 4 / 3; }
+      var free = H - sh - 30, size = Math.max(110, Math.min(190, free * 0.9, W * 0.42));
+      app.style.setProperty('--pad', size + 'px'); app.style.setProperty('--btn', Math.round(size * 0.72) + 'px');
+    } else {
+      var side = pad ? Math.max(120, Math.min(180, W * 0.2)) : 0;
+      sh = H; sw = sh * 4 / 3; if (sw > W - 2 * side - 16) { sw = W - 2 * side - 16; sh = sw * 3 / 4; }
+      app.style.setProperty('--pad', Math.round(Math.min(side - 10, H * 0.55)) + 'px'); app.style.setProperty('--btn', Math.round(Math.min(side - 30, H * 0.4)) + 'px');
+    }
+    stage.style.width = Math.floor(sw) + 'px'; stage.style.height = Math.floor(sh) + 'px';
+  }
+  window.addEventListener('resize', layout); layout();
+
+  // ---------------------------------------------------------------- toasts, drawer, overlay
+  var toastTimer = 0;
+  function toast(text) { var t = $('toast'); t.textContent = text; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200); }
+  var drawer = $('drawer'), scrim = $('scrim');
+  function openDrawer() { held.length = 0; T.input.down = false; setButton(false); setPadDir(null); stop(); if (audio.ctx) audio.ctx.suspend(); readSettings(); drawer.classList.add('open'); scrim.classList.add('open'); }
+  function closeDrawer() { drawer.classList.remove('open'); scrim.classList.remove('open'); if (started && $('overlay').style.display === 'none') { if (audio.ctx) audio.ctx.resume(); start(); } }
+  $('btnMenu').addEventListener('click', openDrawer); $('btnClose').addEventListener('click', closeDrawer); scrim.addEventListener('click', closeDrawer); $('mResume').addEventListener('click', closeDrawer);
+  function sendAndClose(code) { closeDrawer(); setTimeout(function () { tapKey(code); }, 50); }
+  $('mTime').addEventListener('click', function () { sendAndClose(0x20); });
+  $('mRestart').addEventListener('click', function () { sendAndClose(0x01); });
+  $('mTitle').addEventListener('click', function () { sendAndClose(0x12); });
+  $('mSaveGame').addEventListener('click', function () { sendAndClose(0x07); });
+  var levels = $('levels');
+  for (var l = 1; l <= 14; l++) (function (n) { var b = document.createElement('button'); b.textContent = n; b.addEventListener('click', function () { closeDrawer(); startAt(n); }); levels.appendChild(b); })(l);
+  function startAt(n) { stopSong(); holdUntil = 0; T.runJumps(function () { T.START(n); }); due = nextDue(); started = true; toast('Level ' + n); }
+  function wake() { startAudio(); }
+  document.addEventListener('pointerup', wake); document.addEventListener('click', wake);
+  var segPaint = [];
+  function seg(id, key, onChange) {
+    var el = $(id);
+    function paint() { Array.prototype.forEach.call(el.querySelectorAll('button'), function (b) { b.setAttribute('aria-pressed', b.dataset.v === settings[key] ? 'true' : 'false'); }); }
+    el.addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; settings[key] = b.dataset.v; saveSettings(); paint(); if (onChange) onChange(); });
+    paint(); segPaint.push(paint);
+  }
+  function applySettings() { S.soundon = settings.sound === 'on' ? 1 : 0; S.musicon = settings.music === 'on' ? 1 : 0; }
+  function readSettings() { settings.sound = S.soundon ? 'on' : 'off'; settings.music = S.musicon ? 'on' : 'off'; segPaint.forEach(function (p) { p(); }); }
+  seg('segSound', 'sound', applySettings); seg('segMusic', 'music', applySettings); seg('segMono', 'mono', repaint); seg('segPad', 'pad', layout);
+
+  // ---------------------------------------------------------------- saved games (the Apple wrote them to the disk; here they stay in the browser)
+  function saveInfo() { try { var s = JSON.parse(localStorage.getItem('popn.save') || 'null'); return s ? 'Level ' + s.level + ', saved ' + new Date(s.when).toLocaleString() : ''; } catch (e) { return ''; } }
+  T.events.save = function (rec) { try { rec.when = Date.now(); localStorage.setItem('popn.save', JSON.stringify(rec)); toast('Game saved: level ' + rec.level); } catch (e) { toast('Could not save'); } };
+  function loadSave() { var s; try { s = JSON.parse(localStorage.getItem('popn.save') || 'null'); } catch (e) { s = null; } if (!s) return false; T.runJumps(function () { T.STARTRESUME(s); }); toast('Continuing on level ' + s.level); return true; }
+
+  // ---------------------------------------------------------------- the front door
+  var started = false, overlay = $('overlay');
+  T.INITSYSTEM(); applySettings();
+  if (saveInfo()) { $('btnContinue').hidden = false; $('continueInfo').textContent = saveInfo(); }
+  $('btnStart').addEventListener('click', function () { wake(); overlay.style.display = 'none'; started = true; T.setmode('title'); start(); toast('Tap the screen to skip ahead; the menu pauses'); });
+  $('btnContinue').addEventListener('click', function () { wake(); overlay.style.display = 'none'; started = true; if (!loadSave()) { T.setmode('title'); } start(); });
+  document.addEventListener('visibilitychange', function () { if (document.hidden) { if (started && running) { stop(); if (audio.ctx) audio.ctx.suspend(); } } else if (started && !drawer.classList.contains('open') && overlay.style.display === 'none') { if (audio.ctx) audio.ctx.resume(); start(); } });
+  fill(0, 0, 0);
+
+  window.__pop = { T: T, S: S, ST: ST, HR: HR, settings: settings, pressKey: pressKey, releaseKey: releaseKey, tapKey: tapKey, setButton: setButton, startAt: startAt, shown: shown, attract: attract };
+})();
+</script>
+</body>
+</html>
