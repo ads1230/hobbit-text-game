@@ -10,6 +10,19 @@ tape (the bug-fixed release) built in: open it and play. Another tape image can 
 loaded from the menu and is then remembered by the browser. Nothing is uploaded
 anywhere; saved games stay in the browser's storage and can be exported as files.
 
+## Also here: two Oregon Trails
+
+The same treatment for MECC's *The Oregon Trail*, each a self-contained page that
+works on a phone and keeps the journey across reloads:
+
+- [`oregon-trail-1978/`](oregon-trail-1978/) — the original text game from the
+  1978 *Creative Computing* listing (`oregon.html`), illustrated with the
+  landmark pictures, map and tombstone from the 1985 Apple II version.
+- [`oregon-trail-1985/`](oregon-trail-1985/) — the 1985 Apple II game
+  (`oregon85.html`), ported program by program from its BASIC, with the hunting
+  and rafting screens rebuilt from its machine code and the disks' own pictures,
+  sprites and tunes.
+
 ## How it works
 
 The page contains a small ZX Spectrum 48K emulator (a Z80 core plus just enough

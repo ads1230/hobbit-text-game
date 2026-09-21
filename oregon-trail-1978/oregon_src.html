@@ -1,0 +1,858 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="color-scheme" content="light dark">
+<title>Oregon Trail 1978</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<style>
+  :root {
+    --paper: #F3EDE0;
+    --paper-deep: #E9E1CF;
+    --ink: #2B2620;
+    --ink-soft: #5C544A;
+    --muted: #8A8074;
+    --rule: #D6CCB8;
+    --rule-strong: #BDB19B;
+    --accent: #8E3B1E;
+    --accent-ink: #FFF7EE;
+    --accent-soft: #F1D9CC;
+    --gold: #A67C2E;
+    --danger: #A13A2C;
+    --bar: #FBF8F1;
+    --mono: 'Courier Prime', 'Courier New', Courier, monospace;
+    --sans: 'Alegreya Sans', 'Gill Sans', 'Segoe UI', system-ui, sans-serif;
+    --fs: 15.5px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #14120F; --paper-deep: #1C1915; --ink: #ECE3D0; --ink-soft: #C6BBA6; --muted: #8E8574; --rule: #2C2822; --rule-strong: #443E35;
+      --accent: #D98A5B; --accent-ink: #1A0F08; --accent-soft: #3A2417; --gold: #D9B45C; --danger: #E07A6A; --bar: #0F0D0B;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #14120F; --paper-deep: #1C1915; --ink: #ECE3D0; --ink-soft: #C6BBA6; --muted: #8E8574; --rule: #2C2822; --rule-strong: #443E35;
+    --accent: #D98A5B; --accent-ink: #1A0F08; --accent-soft: #3A2417; --gold: #D9B45C; --danger: #E07A6A; --bar: #0F0D0B;
+  }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 15px; overflow: hidden; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  #app { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--paper); }
+
+  header.bar { flex: none; display: flex; align-items: center; gap: 10px; padding: 6px 16px; padding-top: calc(6px + env(safe-area-inset-top, 0px)); border-bottom: 1px solid var(--rule); background: var(--bar); }
+  header.bar > div:first-child { min-width: 0; }
+  header.bar h1 { margin: 0; font: 700 18px/1.2 var(--mono); letter-spacing: .02em; white-space: nowrap; }
+  header.bar .sub { font-size: 12px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .spacer { flex: 1; }
+  .iconbtn { border: 1px solid var(--rule-strong); background: transparent; border-radius: 6px; width: 34px; height: 30px; display: inline-grid; place-items: center; color: var(--ink); flex: none; }
+  .iconbtn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ---------- status strip ---------- */
+  #status { flex: none; border-bottom: 1px solid var(--rule); background: var(--bar); padding: 6px 16px 8px; font-family: var(--sans); }
+  #status .row { display: flex; gap: 14px; flex-wrap: wrap; align-items: baseline; }
+  #status .stat { display: inline-flex; flex-direction: column; min-width: 52px; }
+  #status .stat b { font: 700 15px/1.2 var(--mono); }
+  #status .stat small { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  #status .date { margin-left: auto; font: 700 12.5px/1.4 var(--sans); color: var(--ink-soft); letter-spacing: .04em; text-transform: uppercase; }
+  #trail { position: relative; height: 6px; margin: 8px 0 12px; background: var(--rule); border-radius: 3px; }
+  #trail .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--accent); border-radius: 3px; transition: width .4s; }
+  #trail .mark { position: absolute; top: -3px; width: 2px; height: 12px; background: var(--rule-strong); }
+  #trail .mark span { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+  #trail .wagon { position: absolute; top: -7px; width: 20px; height: 20px; margin-left: -10px; transition: left .4s; color: var(--ink); }
+  #trail .wagon svg { width: 20px; height: 20px; fill: currentColor; }
+
+  /* ---------- printout ---------- */
+  #log { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+  #logInner { max-width: 66ch; margin: 0 auto; padding: 18px 16px 24px; font-family: var(--mono); font-size: var(--fs); line-height: 1.5; }
+  .line { white-space: pre-wrap; overflow-wrap: anywhere; min-height: 1.5em; }
+  .line.blank { min-height: .9em; }
+  .line.sys { font-family: var(--sans); color: var(--muted); font-size: 13.5px; }
+  .ans { color: var(--accent); font-weight: 700; margin: 4px 0 6px; }
+  .ans::before { content: '> '; color: var(--muted); font-weight: 400; }
+  .banner { margin: 10px 0; padding: 10px 14px; border-left: 3px solid var(--accent); background: var(--paper-deep); font-weight: 700; }
+  .grave { margin: 14px 0; padding: 14px; border: 1px solid var(--rule-strong); text-align: center; background: var(--paper-deep); }
+
+  /* ---------- the Apple II pictures ---------- */
+  figure.pic { margin: 10px 0 12px; width: min(100%, 560px); container-type: inline-size; }
+  figure.pic img { display: block; width: 100%; height: auto; image-rendering: pixelated; image-rendering: crisp-edges; border-radius: 3px; background: #000; }
+  figure.pic figcaption { font-family: var(--sans); font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-top: 5px; }
+  figure.pic.stone { position: relative; }
+  figure.pic.stone figcaption { position: absolute; left: 18%; top: 25%; width: 60%; height: 37%; margin: 0; display: flex; align-items: center; justify-content: center; text-align: center; font: 700 3.5cqw/1.3 var(--mono); letter-spacing: 0; text-transform: none; color: #111; }
+  :root[data-pics="none"] figure.pic { display: none; }
+  :root:not([data-pics="none"]) .grave.unpictured { display: none; }
+  #map { position: relative; width: 100%; margin: 6px 0 4px; }
+  #map img { display: block; width: 100%; height: auto; image-rendering: pixelated; image-rendering: crisp-edges; border: 1px solid var(--rule-strong); border-radius: 3px; }
+  #map svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  table.stock { border-collapse: collapse; margin: 6px 0 8px; font-family: var(--mono); }
+  table.stock th { font-weight: 400; color: var(--muted); font-size: 11.5px; letter-spacing: .06em; padding: 0 12px 0 0; text-align: right; }
+  table.stock td { padding: 0 12px 0 0; text-align: right; font-weight: 700; }
+  table.stock th:first-child, table.stock td:first-child { text-align: left; padding-left: 0; }
+
+  /* ---------- dock ---------- */
+  #dock { flex: none; border-top: 1px solid var(--rule); background: var(--bar); padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); }
+  #prompt { font-family: var(--mono); font-size: 14px; color: var(--ink-soft); margin: 0 4px 8px; white-space: pre-wrap; }
+  #choices { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 1px solid var(--rule-strong); background: var(--paper); border-radius: 22px; padding: 9px 16px; font-family: var(--sans); font-weight: 500; font-size: 15px; color: var(--ink); }
+  .chip.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .chip:active { transform: translateY(1px); }
+  .chip .num { display: inline-block; min-width: 1.2em; margin-right: 6px; color: var(--muted); font-family: var(--mono); font-size: 13px; }
+  .chip.primary .num { color: var(--accent-ink); opacity: .75; }
+  #amountRow { display: flex; gap: 8px; align-items: center; }
+  #amountRow input { flex: 1; min-width: 0; font-family: var(--mono); font-size: 18px; padding: 9px 12px; border: 1.5px solid var(--rule-strong); border-radius: 8px; background: var(--paper); color: var(--ink); }
+  #amountRow input:focus { border-color: var(--accent); outline: none; }
+  #amountRow .btn { border: 0; background: var(--accent); color: var(--accent-ink); border-radius: 8px; padding: 10px 18px; font-weight: 700; }
+  .quick { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .quick button { border: 1px solid var(--rule); background: transparent; border-radius: 14px; padding: 4px 10px; font-size: 13px; color: var(--ink-soft); font-family: var(--mono); }
+  #shootRow { display: flex; gap: 8px; align-items: center; }
+  #shootRow .word { font: 700 22px/1 var(--mono); letter-spacing: .12em; padding: 8px 12px; border: 2px dashed var(--accent); border-radius: 8px; color: var(--accent); flex: none; }
+  #shootRow input { flex: 1; min-width: 0; font-family: var(--mono); font-size: 20px; text-transform: uppercase; padding: 9px 12px; border: 1.5px solid var(--rule-strong); border-radius: 8px; background: var(--paper); color: var(--ink); }
+  #shootRow input:focus { border-color: var(--accent); outline: none; }
+  .hint { font-family: var(--sans); font-size: 12.5px; color: var(--muted); margin: 6px 4px 0; }
+  #ending { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* ---------- drawer ---------- */
+  #scrim { position: fixed; inset: 0; background: rgba(0,0,0,.35); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 30; }
+  #scrim.open { opacity: 1; pointer-events: auto; }
+  #drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(360px, 92vw); background: var(--paper); border-left: 1px solid var(--rule); transform: translateX(100%); transition: transform .22s; z-index: 31; overflow-y: auto; padding: 16px 18px calc(16px + env(safe-area-inset-bottom, 0px)); }
+  #drawer.open { transform: none; }
+  #drawer h2 { font: 700 20px/1.2 var(--mono); margin: 0 0 14px; display: flex; align-items: center; }
+  #drawer h3 { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 20px 0 8px; font-weight: 700; }
+  .opt { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--rule); }
+  .opt .lbl { flex: 1; }
+  .opt small { display: block; color: var(--muted); font-size: 12.5px; }
+  .seg { display: inline-flex; border: 1px solid var(--rule-strong); border-radius: 6px; overflow: hidden; }
+  .seg button { border: 0; background: transparent; padding: 5px 10px; font-size: 13px; color: var(--ink); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+  .btn { border: 1px solid var(--rule-strong); background: var(--paper); color: var(--ink); border-radius: 8px; padding: 8px 14px; font-weight: 500; }
+  .btn.danger { border-color: var(--danger); color: var(--danger); }
+  .about { font-size: 13.5px; color: var(--ink-soft); line-height: 1.45; }
+  .about a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="bar">
+    <div>
+      <h1>THE OREGON TRAIL</h1>
+      <div class="sub">MECC, 1971 · Creative Computing, 1978</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="iconbtn" id="menuBtn" title="Menu" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+  </header>
+
+  <div id="status">
+    <div class="row">
+      <span class="stat"><b id="sFood">–</b><small>Food</small></span>
+      <span class="stat"><b id="sBullets">–</b><small>Bullets</small></span>
+      <span class="stat"><b id="sClothing">–</b><small>Clothing</small></span>
+      <span class="stat"><b id="sMisc">–</b><small>Supplies</small></span>
+      <span class="stat"><b id="sCash">–</b><small>Cash</small></span>
+      <span class="date" id="sDate"></span>
+    </div>
+    <div id="trail">
+      <div class="fill" id="trailFill"></div>
+      <div class="mark" style="left:46.6%"><span>South Pass</span></div>
+      <div class="mark" style="left:83.3%"><span>Blue Mts</span></div>
+      <div class="wagon" id="wagon" style="left:0"><svg viewBox="0 0 24 24"><path d="M3 13V8h9l3-4h4l2 4h1v5h-1.2a3 3 0 0 0-5.6 0H9.8a3 3 0 0 0-5.6 0H3zm4 5a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm11 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/></svg></div>
+    </div>
+  </div>
+
+  <div id="log"><div id="logInner"></div></div>
+
+  <div id="dock">
+    <div id="prompt"></div>
+    <div id="choices"></div>
+    <div id="amountRow" hidden>
+      <input id="amountInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Dollars">
+      <button class="btn" id="amountGo" type="button">Go</button>
+    </div>
+    <div class="quick" id="quick" hidden></div>
+    <div id="shootRow" hidden>
+      <span class="word" id="shootWord">BANG</span>
+      <input id="shootInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="type it, fast">
+    </div>
+    <div class="hint" id="hint" hidden></div>
+    <div id="ending" hidden><button class="chip primary" id="againBtn" type="button">Set out again</button></div>
+  </div>
+</div>
+
+<div id="scrim"></div>
+<aside id="drawer" aria-label="Menu">
+  <h2>Menu <span class="spacer"></span><button class="iconbtn" id="closeDrawer" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h2>
+  <h3>Journey</h3>
+  <div class="opt">
+    <div class="lbl">Start a new journey<small>The current one is kept here in the browser and carries on after a reload; starting again throws it away.</small></div>
+    <button class="btn danger" id="newBtn" type="button">New journey</button>
+  </div>
+  <h3>Map</h3>
+  <div id="map"><img id="mapImg" alt="Map of the Oregon Trail"><svg id="mapSvg" viewBox="0 0 280 192" preserveAspectRatio="none"></svg></div>
+  <p class="about" id="mapNote"></p>
+  <h3>Looks</h3>
+  <div class="opt">
+    <div class="lbl">Pictures<small>The landmark scenes from the 1985 Apple II version, shown as you pass them.</small></div>
+    <div class="seg" id="segPics" role="group"><button data-val="apple">Apple II</button><button data-val="none">None</button></div>
+  </div>
+  <div class="opt">
+    <div class="lbl">Theme</div>
+    <div class="seg" id="segTheme" role="group"><button data-val="auto">Auto</button><button data-val="light">Paper</button><button data-val="dark">Night</button></div>
+  </div>
+  <div class="opt">
+    <div class="lbl">Text size</div>
+    <div class="seg" id="segFont" role="group"><button data-val="14">A</button><button data-val="15.5">A</button><button data-val="18">A</button></div>
+  </div>
+  <h3>About</h3>
+  <p class="about">A faithful port of the original text <em>Oregon Trail</em>, written in 1971 by Don Rawitsch, Bill Heinemann and Paul Dillenberger for the Minnesota Educational Computing Consortium, from the BASIC listing MECC published in <em>Creative Computing</em> in 1978. Every figure, formula and random mishap is the 1978 program's; only the way you answer has changed — the teletype's numbered questions are buttons here, and the trusty rifle still wants the word typed fast. Two slips in the printed listing (the day-of-week table and the month boundaries on arrival) are corrected.</p>
+  <p class="about">The pictures, the map and the tombstone are from MECC's 1985 Apple II version, decoded from its disks. That game measures the trail by eighteen landmarks; they are placed here at the mileages of the 1978 game, with its two mountain passages (South Pass at 950 miles, the Blue Mountains at 1700) lining up with theirs.</p>
+</aside>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ------------------------------------------------------------ settings
+  var settings = { theme: 'auto', font: '15.5', pics: 'apple' };
+  try { Object.assign(settings, JSON.parse(localStorage.getItem('oregon.settings')) || {}); } catch (e) {}
+  function saveSettings() { try { localStorage.setItem('oregon.settings', JSON.stringify(settings)); } catch (e) {} }
+  function applyLooks() {
+    if (settings.theme === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', settings.theme);
+    document.documentElement.style.setProperty('--fs', settings.font + 'px');
+    document.documentElement.setAttribute('data-pics', settings.pics);
+  }
+
+  // ------------------------------------------------------------ the pictures from the 1985 Apple II game
+  var PICS = /*__PICS__*/null;   // { name: base64 PNG }, filled in by build.py
+  function picSrc(name) { return PICS && PICS[name] ? 'data:image/png;base64,' + PICS[name] : ''; }
+  // Its eighteen landmarks, placed on the 1978 trail: the 1985 mileages (by way of Fort Bridger and Fort Walla Walla,
+  // the route that passes every one) stretched so that South Pass falls at 950 miles and the Blue Mountains at 1700,
+  // where the 1978 program has its two mountain passages. [picture, name, miles, map x, map y]
+  var LANDMARKS = [
+    ['L0', 'Independence', 0, 245, 139], ['L1', 'the Kansas River crossing', 104, 235, 136], ['L2', 'the Big Blue River crossing', 189, 226, 126],
+    ['L3', 'Fort Kearney', 310, 207, 122], ['L4', 'Chimney Rock', 565, 185, 120], ['L5', 'Fort Laramie', 652, 170, 114],
+    ['L6', 'Independence Rock', 846, 155, 100], ['L7', 'South Pass', 950, 143, 108], ['L8', 'Fort Bridger', 1049, 132, 117],
+    ['L9', 'the Green River crossing', 1178, 134, 108], ['L10', 'Soda Springs', 1292, 124, 104], ['L11', 'Fort Hall', 1338, 110, 101],
+    ['L12', 'the Snake River crossing', 1482, 93, 102], ['L13', 'Fort Boise', 1573, 80, 87], ['L14', 'the Blue Mountains', 1700, 70, 76],
+    ['L15', 'Fort Walla Walla', 1768, 69, 66], ['L16', 'The Dalles', 1916, 55, 71], ['L17', 'the Willamette Valley', 2040, 45, 70]
+  ];
+  function capital(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+  function seg(id, key) {
+    var el = $(id);
+    Array.prototype.forEach.call(el.querySelectorAll('button'), function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.val === String(settings[key])));
+      b.addEventListener('click', function () {
+        settings[key] = b.dataset.val; saveSettings(); applyLooks();
+        Array.prototype.forEach.call(el.querySelectorAll('button'), function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      });
+    });
+  }
+  seg('segTheme', 'theme'); seg('segFont', 'font'); seg('segPics', 'pics'); applyLooks();
+
+  var drawer = $('drawer'), scrim = $('scrim');
+  function openDrawer() { drawer.classList.add('open'); scrim.classList.add('open'); }
+  function closeDrawer() { drawer.classList.remove('open'); scrim.classList.remove('open'); }
+  $('menuBtn').addEventListener('click', openDrawer);
+  $('closeDrawer').addEventListener('click', closeDrawer);
+  scrim.addEventListener('click', closeDrawer);
+
+  // ------------------------------------------------------------ printout
+  var log = $('log'), logInner = $('logInner');
+  function atEnd() { return log.scrollHeight - log.scrollTop - log.clientHeight < 60; }
+  function scrollToEnd(smooth) {
+    if (smooth && log.scrollTo) log.scrollTo({ top: log.scrollHeight, behavior: 'smooth' }); else log.scrollTop = log.scrollHeight;
+  }
+  function line(text, cls) {
+    var d = document.createElement('div');
+    d.className = 'line' + (text === '' ? ' blank' : '') + (cls ? ' ' + cls : '');
+    d.textContent = text;
+    logInner.appendChild(d);
+    return d;
+  }
+  function html(cls, inner) { var d = document.createElement('div'); d.className = cls; d.innerHTML = inner; logInner.appendChild(d); return d; }
+  function stockTable(F, B, C, M1, T) {
+    html('stock-wrap', '<table class="stock"><tr><th>Food</th><th>Bullets</th><th>Clothing</th><th>Misc. supp.</th><th>Cash</th></tr><tr><td>' +
+      [F, B, C, M1, T].map(function (v) { return Math.floor(v); }).join('</td><td>') + '</td></tr></table>');
+  }
+  function picture(name, caption, cls) {
+    var src = picSrc(name);
+    if (!src) return null;
+    var f = document.createElement('figure'); f.className = 'pic' + (cls ? ' ' + cls : '');
+    var img = document.createElement('img'); img.src = src; img.alt = caption; f.appendChild(img);
+    var c = document.createElement('figcaption'); c.textContent = caption; f.appendChild(c);
+    logInner.appendChild(f);
+    return f;
+  }
+  function grave(date, miles) {
+    var m = Math.max(0, Math.floor(miles));
+    var f = picture('TS', 'HERE LIES A PIONEER FAMILY', 'stone');
+    if (!f) { html('grave', 'HERE LIES A PIONEER FAMILY<br>' + (date ? date + '<br>' : '') + m + ' MILES ALONG THE OREGON TRAIL'); return; }
+    f.querySelector('figcaption').innerHTML = 'HERE LIES<br>A PIONEER FAMILY<br>' + (date ? date + '<br>' : '') + m + ' MILES ALONG<br>THE OREGON TRAIL';
+    // the plain version stands in when the pictures are switched off
+    html('grave unpictured', 'HERE LIES A PIONEER FAMILY<br>' + (date ? date + '<br>' : '') + m + ' MILES ALONG THE OREGON TRAIL');
+  }
+
+  // ------------------------------------------------------------ status strip and map
+  var TRAIL = 2040;
+  var mapSvg = $('mapSvg');
+  $('mapImg').src = picSrc('M0');
+  function mapPoint(miles) {   // where a mileage falls on the 1985 map, along the line through its landmarks
+    var i = 1;
+    while (i < LANDMARKS.length - 1 && LANDMARKS[i][2] < miles) i++;
+    var a = LANDMARKS[i - 1], b = LANDMARKS[i];
+    var t = Math.max(0, Math.min(1, (miles - a[2]) / (b[2] - a[2])));
+    return [a[3] + (b[3] - a[3]) * t, a[4] + (b[4] - a[4]) * t];
+  }
+  function drawMap(miles) {
+    var pts = [], i;
+    for (i = 0; i < LANDMARKS.length && LANDMARKS[i][2] <= miles; i++) pts.push(LANDMARKS[i][3] + ',' + LANDMARKS[i][4]);
+    var here = mapPoint(miles);
+    pts.push(here[0].toFixed(1) + ',' + here[1].toFixed(1));
+    mapSvg.innerHTML = '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#8E3B1E" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>' +
+      '<circle cx="' + here[0].toFixed(1) + '" cy="' + here[1].toFixed(1) + '" r="2.6" fill="#8E3B1E" stroke="#fff" stroke-width="1"/>';
+    var passed = null;
+    for (i = 0; i < LANDMARKS.length; i++) if (LANDMARKS[i][2] <= miles) passed = LANDMARKS[i];
+    $('mapNote').textContent = miles >= TRAIL ? 'Arrived in the Willamette Valley.' : passed ? Math.floor(miles) + ' miles along the trail, past ' + passed[1] + '.' : '';
+  }
+  function setStatus(s) {
+    $('sFood').textContent = s.food; $('sBullets').textContent = s.bullets; $('sClothing').textContent = s.clothing; $('sMisc').textContent = s.misc; $('sCash').textContent = '$' + s.cash;
+    $('sDate').textContent = s.date || '';
+    var pct = Math.max(0, Math.min(100, 100 * s.miles / TRAIL));
+    $('trailFill').style.width = pct + '%'; $('wagon').style.left = pct + '%';
+    drawMap(s.miles);
+  }
+
+  // ------------------------------------------------------------ the record of a journey: a seed and every answer given
+  // Replaying it through the same program rebuilds the whole game, which is how a reload carries on.
+  var journey = null; // { seed, answers: [] }
+  function loadJourney() { try { var j = JSON.parse(localStorage.getItem('oregon.journey')); if (j && typeof j.seed === 'number' && Array.isArray(j.answers)) return j; } catch (e) {} return null; }
+  function saveJourney() { try { localStorage.setItem('oregon.journey', JSON.stringify(journey)); } catch (e) {} }
+  function newJourney() { journey = { seed: (Math.random() * 4294967296) >>> 0, answers: [] }; saveJourney(); }
+  function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+  // ------------------------------------------------------------ the dock: how a question gets answered
+  var prompt = $('prompt'), choices = $('choices'), amountRow = $('amountRow'), amountInput = $('amountInput'), quick = $('quick'), shootRow = $('shootRow'), shootInput = $('shootInput'), hint = $('hint'), ending = $('ending');
+  var pending = null; // { resolve }
+  function clearDock() {
+    prompt.textContent = ''; choices.textContent = ''; amountRow.hidden = true; quick.hidden = true; quick.textContent = ''; shootRow.hidden = true; hint.hidden = true; ending.hidden = true;
+  }
+  function answerLine(text) { line(text, 'ans'); }
+  function settle(value, echo) {
+    if (!pending) return;
+    var p = pending; pending = null;
+    clearDock();
+    if (echo !== undefined && echo !== null) answerLine(echo);
+    journey.answers.push(value); saveJourney();
+    p.io.replayIndex = journey.answers.length; // a live answer counts as consumed too
+    p.resolve(value);
+  }
+  function makeChip(label, num, primary, onClick) {
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'chip' + (primary ? ' primary' : '');
+    if (num !== undefined && num !== null) { var n = document.createElement('span'); n.className = 'num'; n.textContent = num; b.appendChild(n); }
+    b.appendChild(document.createTextNode(label));
+    b.addEventListener('click', onClick);
+    return b;
+  }
+  // Presents a question and waits for the answer; in replay the recorded answer is returned at once.
+  function ask(spec, io) {
+    if (spec.log) line(spec.log);
+    if (io.replayIndex < journey.answers.length) {
+      var v = journey.answers[io.replayIndex++];
+      answerLine(echoFor(spec, v));
+      return Promise.resolve(v);
+    }
+    return new Promise(function (resolve) {
+      pending = { resolve: resolve, io: io };
+      clearDock();
+      prompt.textContent = spec.prompt || '';
+      if (spec.type === 'choice') {
+        spec.options.forEach(function (o, i) { choices.appendChild(makeChip(o.label, o.num, i === 0 && spec.primaryFirst, function () { settle(o.v, echoFor(spec, o.v)); })); });
+      } else if (spec.type === 'yesno') {
+        choices.appendChild(makeChip('Yes', null, true, function () { settle(true, 'YES'); }));
+        choices.appendChild(makeChip('No', null, false, function () { settle(false, 'NO'); }));
+      } else if (spec.type === 'amount') {
+        amountRow.hidden = false; amountInput.value = ''; amountInput.placeholder = spec.placeholder || 'Dollars';
+        if (spec.quick && spec.quick.length) {
+          quick.hidden = false;
+          spec.quick.forEach(function (q) { var b = document.createElement('button'); b.type = 'button'; b.textContent = q.label; b.addEventListener('click', function () { amountInput.value = String(q.v); submitAmount(); }); quick.appendChild(b); });
+        }
+        if (spec.hint) { hint.hidden = false; hint.textContent = spec.hint; }
+        setTimeout(function () { amountInput.focus(); }, 50);
+      } else if (spec.type === 'shoot') {
+        shootRow.hidden = false; $('shootWord').textContent = spec.word; shootInput.value = '';
+        hint.hidden = false; hint.textContent = 'The clock starts when the box is ready for typing.';
+        shootStart = 0;
+        setTimeout(function () { shootInput.focus(); if (document.activeElement !== shootInput) shootStart = 0; }, 30);
+      }
+      scrollToEnd(true);
+    });
+  }
+  function echoFor(spec, v) {
+    if (spec.type === 'choice') { var o = spec.options.filter(function (x) { return x.v === v; })[0]; return o ? String(o.num !== undefined ? o.num + '  ' : '') + o.label.toUpperCase() : String(v); }
+    if (spec.type === 'yesno') return v ? 'YES' : 'NO';
+    if (spec.type === 'amount') return '$' + v;
+    if (spec.type === 'shoot') return (v.ok ? spec.word : (v.typed || '').toUpperCase() || '…') + '   (' + v.secs.toFixed(2) + ' s)';
+    return String(v);
+  }
+  function submitAmount() {
+    var n = parseFloat(String(amountInput.value).replace(/[^0-9.]/g, ''));
+    if (!isFinite(n)) { amountInput.focus(); return; }
+    settle(Math.floor(n), '$' + Math.floor(n));
+  }
+  $('amountGo').addEventListener('click', submitAmount);
+  amountInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); submitAmount(); } });
+  var shootStart = 0;
+  shootInput.addEventListener('focus', function () { if (!shootStart) shootStart = performance.now(); });
+  shootInput.addEventListener('input', function () { if (!shootStart) shootStart = performance.now(); });
+  shootInput.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    if (!pending) return;
+    var secs = shootStart ? (performance.now() - shootStart) / 1000 : 9;
+    var typed = shootInput.value.trim();
+    var ok = typed.toUpperCase() === $('shootWord').textContent;
+    settle({ secs: Math.round(secs * 100) / 100, ok: ok, typed: typed }, null);
+    answerLine(echoFor({ type: 'shoot', word: $('shootWord').textContent }, { secs: secs, ok: ok, typed: typed }));
+  });
+
+  // ------------------------------------------------------------ the program (Creative Computing, 1978)
+  var DATES = ['APRIL 12', 'APRIL 26', 'MAY 10', 'MAY 24', 'JUNE 7', 'JUNE 21', 'JULY 5', 'JULY 19', 'AUGUST 2', 'AUGUST 16', 'AUGUST 31', 'SEPTEMBER 13', 'SEPTEMBER 27', 'OCTOBER 11', 'OCTOBER 25', 'NOVEMBER 8', 'NOVEMBER 22', 'DECEMBER 6', 'DECEMBER 20'];
+  var SHOTS = ['BANG', 'BLAM', 'POW', 'WHAM'];
+  var DEAD = 'dead', ARRIVED = 'arrived';
+
+  async function play(io) {
+    var P = io.print, R = io.rnd, INT = Math.floor;
+    var A = 0, F = 0, B = 0, C = 0, M1 = 0, T = 0, M = 0, M2 = 0, D3 = 0, D9 = 0, E = 0, X1 = -1, K8 = 0, S4 = 0, F1 = 0, F2 = 0, M9 = 0, L1 = 0, C1 = 0;
+    var currentDate = 'MONDAY MARCH 29 1847';
+    function status() { io.status({ food: INT(Math.max(0, F)), bullets: INT(Math.max(0, B)), clothing: INT(Math.max(0, C)), misc: INT(Math.max(0, M1)), cash: INT(Math.max(0, T)), miles: Math.max(0, M), date: currentDate }); }
+    // the landmarks reached since the last turn (not part of the 1978 program: it only illustrates the mileage)
+    var nextLandmark = 0;
+    function landmarks(miles) { while (nextLandmark < LANDMARKS.length && LANDMARKS[nextLandmark][2] <= miles) { io.landmark(LANDMARKS[nextLandmark]); nextLandmark++; } }
+
+    if (await io.ask({ type: 'yesno', prompt: 'Do you need instructions?', log: 'DO YOU NEED INSTRUCTIONS?' })) {
+      P(''); P('');
+      ['THIS PROGRAM SIMULATES A TRIP OVER THE OREGON TRAIL FROM', 'INDEPENDENCE, MISSOURI TO OREGON CITY, OREGON IN 1847.', 'YOUR FAMILY OF FIVE WILL COVER THE 2040 MILE OREGON TRAIL', 'IN 5-6 MONTHS --- IF YOU MAKE IT ALIVE.', '',
+        "YOU HAD SAVED $900 TO SPEND FOR THE TRIP, AND YOU'VE JUST", '   PAID $200 FOR A WAGON.', 'YOU WILL NEED TO SPEND THE REST OF YOUR MONEY ON THE', '   FOLLOWING ITEMS:', '',
+        '     OXEN - YOU CAN SPEND $200-$300 ON YOUR TEAM', "            THE MORE YOU SPEND, THE FASTER YOU'LL GO", "               BECAUSE YOU'LL HAVE BETTER ANIMALS", '',
+        '     FOOD - THE MORE YOU HAVE, THE LESS CHANCE THERE', '               IS OF GETTING SICK', '',
+        '     AMMUNITION - $1 BUYS A BELT OF 50 BULLETS', '            YOU WILL NEED BULLETS FOR ATTACKS BY ANIMALS', '               AND BANDITS, AND FOR HUNTING FOOD', '',
+        '     CLOTHING - THIS IS ESPECIALLY IMPORTANT FOR THE COLD', '               WEATHER YOU WILL ENCOUNTER WHEN CROSSING', '               THE MOUNTAINS', '',
+        '     MISCELLANEOUS SUPPLIES - THIS INCLUDES MEDICINE AND', '               OTHER THINGS YOU WILL NEED FOR SICKNESS', '               AND EMERGENCY REPAIRS', '', '',
+        'YOU CAN SPEND ALL YOUR MONEY BEFORE YOU START YOUR TRIP -', 'OR YOU CAN SAVE SOME OF YOUR CASH TO SPEND AT FORTS ALONG', 'THE WAY WHEN YOU RUN LOW. HOWEVER, ITEMS COST MORE AT', 'THE FORTS. YOU CAN ALSO GO HUNTING ALONG THE WAY TO GET', 'MORE FOOD.',
+        'WHENEVER YOU HAVE TO USE YOUR TRUSTY RIFLE ALONG THE WAY,', 'YOU WILL BE TOLD TO TYPE IN A WORD (ONE THAT SOUNDS LIKE A', 'GUN SHOT). THE FASTER YOU TYPE IN THAT WORD AND HIT THE', "**RETURN** KEY, THE BETTER LUCK YOU'LL HAVE WITH YOUR GUN.", '',
+        'AT EACH TURN, ALL ITEMS ARE SHOWN IN DOLLAR AMOUNTS', 'EXCEPT BULLETS', "WHEN ASKED TO ENTER MONEY AMOUNTS, DON'T USE A **$**.", '', 'GOOD LUCK!!!'].forEach(P);
+    }
+    P(''); P('');
+    P('HOW GOOD A SHOT ARE YOU WITH YOUR RIFLE?');
+    P("  (1) ACE MARKSMAN,  (2) GOOD SHOT,  (3) FAIR TO MIDDLIN'");
+    P('         (4) NEED MORE PRACTICE,  (5) SHAKY KNEES');
+    P('ENTER ONE OF THE ABOVE -- THE BETTER YOU CLAIM YOU ARE, THE');
+    P("FASTER YOU'LL HAVE TO BE WITH YOUR GUN TO BE SUCCESSFUL.");
+    D9 = await io.ask({ type: 'choice', prompt: 'How good a shot are you?', options: [{ v: 1, num: 1, label: 'Ace marksman' }, { v: 2, num: 2, label: 'Good shot' }, { v: 3, num: 3, label: "Fair to middlin'" }, { v: 4, num: 4, label: 'Need more practice' }, { v: 5, num: 5, label: 'Shaky knees' }] });
+    if (D9 > 5) D9 = 0;
+
+    // *** INITIAL PURCHASES ***
+    while (true) {
+      P(''); P('');
+      var oxenQ = { type: 'amount', prompt: 'Oxen team, $200 to $300', log: 'HOW MUCH DO YOU WANT TO SPEND ON YOUR OXEN TEAM?', hint: 'The more you spend, the faster you go. You have $700 in all.', quick: [{ v: 200, label: '$200' }, { v: 250, label: '$250' }, { v: 300, label: '$300' }] };
+      A = await io.ask(oxenQ);
+      while (A < 200 || A > 300) { P(A < 200 ? 'NOT ENOUGH' : 'TOO MUCH'); A = await io.ask(oxenQ); }
+      var left = 700 - A;
+      var foodQ = { type: 'amount', prompt: 'Food', log: 'HOW MUCH DO YOU WANT TO SPEND ON FOOD?', hint: '$' + left + ' left for food, ammunition, clothing and supplies.' };
+      F = await io.ask(foodQ);
+      while (F < 0) { P('IMPOSSIBLE'); F = await io.ask(foodQ); }
+      left -= F;
+      var ammoQ = { type: 'amount', prompt: 'Ammunition', log: 'HOW MUCH DO YOU WANT TO SPEND ON AMMUNITION?', hint: '$1 buys a belt of 50 bullets. $' + left + ' left.' };
+      B = await io.ask(ammoQ);
+      while (B < 0) { P('IMPOSSIBLE'); B = await io.ask(ammoQ); }
+      left -= B;
+      var clothQ = { type: 'amount', prompt: 'Clothing', log: 'HOW MUCH DO YOU WANT TO SPEND ON CLOTHING?', hint: 'For the cold in the mountains. $' + left + ' left.' };
+      C = await io.ask(clothQ);
+      while (C < 0) { P('IMPOSSIBLE'); C = await io.ask(clothQ); }
+      left -= C;
+      var miscQ = { type: 'amount', prompt: 'Miscellaneous supplies', log: 'HOW MUCH DO YOU WANT TO SPEND ON MISCELLANEOUS SUPPLIES?', hint: 'Medicine and repairs. $' + left + ' left.', quick: left > 0 ? [{ v: Math.max(0, left), label: 'All of it ($' + Math.max(0, left) + ')' }] : [] };
+      M1 = await io.ask(miscQ);
+      while (M1 < 0) { P('IMPOSSIBLE'); M1 = await io.ask(miscQ); }
+      T = 700 - A - F - B - C - M1;
+      if (T >= 0) break;
+      P('YOU OVERSPENT--YOU ONLY HAD $700 TO SPEND.  BUY AGAIN.');
+    }
+    B = 50 * B;
+    P('AFTER ALL YOUR PURCHASES, YOU NOW HAVE ' + T + ' DOLLARS LEFT');
+    P('');
+    P('MONDAY MARCH 29 1847');
+    P('');
+    status();
+
+    // shooting sub-routine (6140)
+    async function shoot() {
+      var word = SHOTS[INT(R() * 4)];
+      P('TYPE ' + word);
+      var r = await io.ask({ type: 'shoot', word: word, prompt: 'Type the word and hit return, fast!' });
+      var B1 = (r.secs * 2) - (D9 - 1);
+      P('');
+      if (B1 < 0) B1 = 0;
+      if (!r.ok) B1 = 9;
+      return B1;
+    }
+    // illness sub-routine (6300): returns DEAD or null
+    async function illness() {
+      if (100 * R() < 10 + 35 * (E - 1)) { P('MILD ILLNESS---MEDICINE USED'); M = M - 5; M1 = M1 - 2; }
+      else if (100 * R() < 100 - (40 / Math.pow(4, E - 1))) { P('BAD ILLNESS---MEDICINE USED'); M = M - 5; M1 = M1 - 5; }
+      else { P('SERIOUS ILLNESS'); P('YOU MUST STOP FOR MEDICAL ATTENTION'); M1 = M1 - 10; S4 = 1; }
+      if (M1 < 0) { P('YOU RAN OUT OF MEDICAL SUPPLIES'); return died(); }
+      return null;
+    }
+    // dying (5120)
+    async function died() { P('YOU DIED OF ' + (K8 === 1 ? 'INJURIES' : 'PNEUMONIA')); return formalities(); }
+    async function formalities() {
+      status();
+      P('');
+      P('DUE TO YOUR UNFORTUNATE SITUATION, THERE ARE A FEW');
+      P('FORMALITIES WE MUST GO THROUGH');
+      P('');
+      P('WOULD YOU LIKE A MINISTER?');
+      await io.ask({ type: 'yesno', prompt: 'Would you like a minister?' });
+      P('WOULD YOU LIKE A FANCY FUNERAL?');
+      await io.ask({ type: 'yesno', prompt: 'Would you like a fancy funeral?' });
+      P('WOULD YOU LIKE US TO INFORM YOUR NEXT OF KIN?');
+      var kin = await io.ask({ type: 'yesno', prompt: 'Would you like us to inform your next of kin?' });
+      if (kin) { P('THAT WILL BE $4.50 FOR THE TELEGRAPH CHARGE.'); P(''); }
+      else { P('BUT YOUR AUNT SADIE IN ST. LOUIS IS REALLY WORRIED ABOUT YOU'); P(''); }
+      P('WE THANK YOU FOR THIS INFORMATION AND WE ARE SORRY YOU');
+      P("DIDN'T MAKE IT TO THE GREAT TERRITORY OF OREGON");
+      P('BETTER LUCK NEXT TIME');
+      P(''); P('');
+      P('                              SINCERELY');
+      P('');
+      P('                 THE OREGON CITY CHAMBER OF COMMERCE');
+      io.grave(currentDate, M);
+      return DEAD;
+    }
+    // the end of the mountains section (4940)
+    function end4940() { if (M > 950) return null; M9 = 1; return null; }
+    async function blizzard() {
+      P('BLIZZARD IN MOUNTAIN PASS--TIME AND SUPPLIES LOST');
+      L1 = 1; F = F - 25; M1 = M1 - 10; B = B - 300; M = M - 30 - 40 * R();
+      if (C < 18 + 2 * R()) { var r = await illness(); if (r) return r; }
+      return end4940();
+    }
+    // *** MOUNTAINS *** (4710)
+    async function mountains() {
+      if (M <= 950) return null;
+      var m = M / 100 - 15;
+      if (!(R() * 10 > 9 - (m * m + 72) / (m * m + 12))) {
+        P('RUGGED MOUNTAINS');
+        if (R() <= .1) { P('YOU GOT LOST---LOSE VALUABLE TIME TRYING TO FIND TRAIL!'); M = M - 60; }
+        else if (R() <= .11) { P('WAGON DAMAGED!-LOSE TIME AND SUPPLIES'); M1 = M1 - 5; B = B - 200; M = M - 20 - 30 * R(); }
+        else { P('THE GOING GETS SLOW'); M = M - 45 - R() / .02; }
+      }
+      if (F1 === 0) {
+        F1 = 1;
+        if (R() < .8) return blizzard();
+        P('YOU MADE IT SAFELY THROUGH SOUTH PASS--NO SNOW');
+      }
+      if (M >= 1700 && F2 === 0) {
+        F2 = 1;
+        if (R() < .7) return blizzard();
+      }
+      return end4940();
+    }
+
+    var firstTurn = true;
+    while (true) {
+      if (!firstTurn) {
+        if (M >= 2040) return finalTurn();
+        // *** SETTING DATE ***
+        D3 = D3 + 1;
+        P('');
+        if (D3 > 19) {
+          P('YOU HAVE BEEN ON THE TRAIL TOO LONG ------');
+          P('YOUR FAMILY DIES IN THE FIRST BLIZZARD OF WINTER');
+          return formalities();
+        }
+        currentDate = 'MONDAY ' + DATES[D3 - 1] + ' 1847';
+        io.dateLine(currentDate);
+        P('');
+      }
+      firstTurn = false;
+      // *** BEGINNING EACH TURN *** (1750)
+      if (F < 0) F = 0; if (B < 0) B = 0; if (C < 0) C = 0; if (M1 < 0) M1 = 0;
+      if (F < 13) P("YOU'D BETTER DO SOME HUNTING OR BUY FOOD AND SOON!!!!");
+      F = INT(F); B = INT(B); C = INT(C); M1 = INT(M1); T = INT(T); M = INT(M); M2 = M;
+      if (S4 === 1 || K8 === 1) {
+        T = T - 20;
+        if (T < 0) { T = 0; P("YOU CAN'T AFFORD A DOCTOR"); return died(); }
+        P("DOCTOR'S BILL IS $20");
+        K8 = 0; S4 = 0;
+      }
+      if (M9 === 1) { P('TOTAL MILEAGE IS 950'); M9 = 0; } else P('TOTAL MILEAGE IS ' + M);
+      landmarks(M);
+      io.stock(F, B, C, M1, T);
+      status();
+      var X;
+      if (X1 === -1) {
+        while (true) {
+          P('DO YOU WANT TO (1) HUNT, OR (2) CONTINUE');
+          X = await io.ask({ type: 'choice', prompt: 'What now?', options: [{ v: 1, num: 1, label: 'Hunt' }, { v: 2, num: 2, label: 'Continue' }] });
+          if (X !== 1) X = 2;
+          X = X + 1;
+          if (X === 3 || B > 39) break;
+          P('TOUGH YOU NEED MORE BULLETS TO GO HUNTING');
+        }
+        X1 = X1 * -1;
+      } else {
+        X1 = X1 * -1;
+        P('DO YOU WANT TO (1) STOP AT THE NEXT FORT, (2) HUNT, OR (3) CONTINUE');
+        X = await io.ask({ type: 'choice', prompt: 'What now?', options: [{ v: 1, num: 1, label: 'Stop at the next fort' }, { v: 2, num: 2, label: 'Hunt' }, { v: 3, num: 3, label: 'Continue' }] });
+        if (X > 2 || X < 1) X = 3;
+      }
+      // hunting without enough bullets sends you back to the fort question (2080), whatever turn it is
+      while (X === 2 && B <= 39) {
+        P('TOUGH---YOU NEED MORE BULLETS TO GO HUNTING');
+        P('DO YOU WANT TO (1) STOP AT THE NEXT FORT, (2) HUNT, OR (3) CONTINUE');
+        X = await io.ask({ type: 'choice', prompt: 'What now?', options: [{ v: 1, num: 1, label: 'Stop at the next fort' }, { v: 2, num: 2, label: 'Hunt' }, { v: 3, num: 3, label: 'Continue' }] });
+        if (X > 2 || X < 1) X = 3;
+      }
+      if (X === 1) {
+        // *** STOPPING AT FORT ***
+        P('ENTER WHAT YOU WISH TO SPEND ON THE FOLLOWING');
+        var items = [['FOOD', 'Food'], ['AMMUNITION', 'Ammunition'], ['CLOTHING', 'Clothing'], ['MISCELLANEOUS SUPPLIES', 'Miscellaneous supplies']];
+        for (var i = 0; i < items.length; i++) {
+          var Pp = await io.ask({ type: 'amount', prompt: items[i][1], log: items[i][0], hint: 'Fort prices: $1 buys two-thirds of what it did in Independence. Cash $' + INT(T) + '.', quick: [{ v: 0, label: 'Nothing' }] });
+          if (Pp < 0) Pp = 0;
+          T = T - Pp;
+          if (T < 0) { P("YOU DON'T HAVE THAT MUCH--KEEP YOUR SPENDING DOWN"); P('YOU MISS YOUR CHANCE TO SPEND ON THAT ITEM'); T = T + Pp; Pp = 0; }
+          if (i === 0) F = F + 2 / 3 * Pp;
+          else if (i === 1) B = INT(B + 2 / 3 * Pp * 50);
+          else if (i === 2) C = C + 2 / 3 * Pp;
+          else M1 = M1 + 2 / 3 * Pp;
+        }
+        M = M - 45;
+        status();
+      } else if (X === 2) {
+        // *** HUNTING ***
+        M = M - 45;
+        var B1 = await shoot();
+        if (B1 <= 1) {
+          P('RIGHT BETWEEN THE EYES---YOU GOT A BIG ONE!!!!');
+          P('FULL BELLIES TONIGHT!');
+          F = F + 52 + R() * 6; B = B - 10 - R() * 4;
+        } else if (100 * R() < 13 * B1) {
+          P('YOU MISSED---AND YOUR DINNER GOT AWAY.....');
+        } else {
+          F = F + 48 - 2 * B1;
+          P("NICE SHOT--RIGHT ON TARGET--GOOD EATIN' TONIGHT!!");
+          B = B - 10 - 3 * B1;
+        }
+        status();
+      }
+      // 2720
+      if (F < 13) { P('YOU RAN OUT OF FOOD AND STARVED TO DEATH'); return formalities(); }
+      // *** EATING ***
+      while (true) {
+        P('DO YOU WANT TO EAT (1) POORLY   (2) MODERATELY   OR (3) WELL');
+        E = await io.ask({ type: 'choice', prompt: 'How well do you eat this fortnight?', options: [{ v: 1, num: 1, label: 'Poorly' }, { v: 2, num: 2, label: 'Moderately' }, { v: 3, num: 3, label: 'Well' }] });
+        if (E < 1 || E > 3) continue;
+        F = F - 8 - 5 * E;
+        if (F >= 0) break;
+        F = F + 8 + 5 * E;
+        P("YOU CAN'T EAT THAT WELL");
+      }
+      M = M + 200 + (A - 220) / 5 + 10 * R();
+      L1 = 0; C1 = 0;
+      // *** RIDERS ATTACK ***
+      var m4 = M / 100 - 4, riders = !(R() * 10 > (m4 * m4 + 72) / (m4 * m4 + 12) - 1), S5 = 0;
+      if (riders) {
+        var look = R() < .8;
+        S5 = look ? 0 : 1;
+        P('RIDERS AHEAD.   THEY ' + (look ? '' : "DON'T ") + 'LOOK HOSTILE');
+        P('TACTICS');
+        P('(1) RUN  (2) ATTACK  (3) CONTINUE  (4) CIRCLE WAGONS');
+        if (!(R() > .2)) S5 = 1 - S5;
+        var T1 = await io.ask({ type: 'choice', prompt: 'Tactics?', options: [{ v: 1, num: 1, label: 'Run' }, { v: 2, num: 2, label: 'Attack' }, { v: 3, num: 3, label: 'Continue' }, { v: 4, num: 4, label: 'Circle wagons' }] });
+        var skipLosses = false;
+        if (S5 === 1) {
+          if (T1 === 1) { M = M + 15; A = A - 10; }
+          else if (T1 === 2) { M = M - 5; B = B - 100; }
+          else if (T1 === 4) { M = M - 20; }
+        } else {
+          if (T1 === 1) { M = M + 20; M1 = M1 - 15; B = B - 150; A = A - 40; }
+          else if (T1 === 2 || T1 === 4) {
+            var B1r = await shoot();
+            if (T1 === 2) B = B - B1r * 40 - 80; else { B = B - B1r * 30 - 80; M = M - 25; }
+            if (B1r <= 1) P('NICE SHOOTING---YOU DROVE THEM OFF');
+            else if (B1r <= 4) P('KINDA SLOW WITH YOUR COLT .45');
+            else { P('LOUSY SHOT---YOU GOT KNIFED'); K8 = 1; P("YOU HAVE TO SEE OL' DOC BLANCHARD"); }
+          } else {
+            if (R() > .8) { P('THEY DID NOT ATTACK'); skipLosses = true; }
+            else { B = B - 150; M1 = M1 - 15; }
+          }
+        }
+        if (!skipLosses) {
+          if (S5 === 0) {
+            P('RIDERS WERE HOSTILE--CHECK FOR LOSSES');
+            if (B < 0) { P('YOU RAN OUT OF BULLETS AND GOT MASSACRED BY THE RIDERS'); return formalities(); }
+          } else P('RIDERS WERE FRIENDLY, BUT CHECK FOR POSSIBLE LOSSES');
+        }
+        status();
+      }
+      // *** SELECTION OF EVENTS ***
+      var R1 = 100 * R(), thresholds = [6, 11, 13, 15, 17, 22, 32, 35, 37, 42, 44, 54, 64, 69, 95], D1 = 16;
+      for (var k = 0; k < thresholds.length; k++) if (R1 <= thresholds[k]) { D1 = k + 1; break; }
+      var r;
+      switch (D1) {
+        case 1: P('WAGON BREAKS DOWN--LOSE TIME AND SUPPLIES FIXING IT'); M = M - 15 - 5 * R(); M1 = M1 - 8; break;
+        case 2: P('OX INJURES LEG--SLOWS YOU DOWN REST OF TRIP'); M = M - 25; A = A - 20; break;
+        case 3: P('BAD LUCK--YOUR DAUGHTER BROKE HER ARM'); P('YOU HAD TO STOP AND USE SUPPLIES TO MAKE A SLING'); M = M - 5 - 4 * R(); M1 = M1 - 2 - 3 * R(); break;
+        case 4: P('OX WANDERS OFF--SPEND TIME LOOKING FOR IT'); M = M - 17; break;
+        case 5: P('YOUR SON GETS LOST---SPEND HALF THE DAY LOOKING FOR HIM'); M = M - 10; break;
+        case 6: P('UNSAFE WATER--LOSE TIME LOOKING FOR CLEAN SPRING'); M = M - 10 * R() - 2; break;
+        case 7:
+          if (M > 950) {
+            var warm = C > 22 + 4 * R();
+            P('COLD WEATHER---BRRRRRRR!---YOU ' + (warm ? '' : "DON'T ") + 'HAVE ENOUGH CLOTHING TO KEEP YOU WARM');
+            if (!warm) { C1 = 1; r = await illness(); if (r) return r; }
+          } else { P('HEAVY RAINS---TIME AND SUPPLIES LOST'); F = F - 10; B = B - 500; M1 = M1 - 15; M = M - 10 * R() - 5; }
+          break;
+        case 8:
+          P('BANDITS ATTACK');
+          var B1b = await shoot();
+          B = B - 20 * B1b;
+          if (B < 0) { P('YOU RAN OUT OF BULLETS---THEY GET LOTS OF CASH'); T = T / 3; }
+          if (B < 0 || B1b > 1) {
+            P('YOU GOT SHOT IN THE LEG AND THEY TOOK ONE OF YOUR OXEN'); K8 = 1; P('BETTER HAVE A DOC LOOK AT YOUR WOUND'); M1 = M1 - 5; A = A - 20;
+          } else { P('QUICKEST DRAW OUTSIDE OF DODGE CITY!!!'); P("YOU GOT 'EM!"); }
+          break;
+        case 9: P('THERE WAS A FIRE IN YOUR WAGON--FOOD AND SUPPLIES DAMAGE!'); F = F - 40; B = B - 400; M1 = M1 - R() * 8 - 3; M = M - 15; break;
+        case 10: P('LOSE YOUR WAY IN HEAVY FOG---TIME IS LOST'); M = M - 10 - 5 * R(); break;
+        case 11:
+          P('YOU KILLED A POISONOUS SNAKE AFTER IT BIT YOU'); B = B - 10; M1 = M1 - 5;
+          if (M1 < 0) { P('YOU DIE OF SNAKEBITE SINCE YOU HAVE NO MEDICINE'); return formalities(); }
+          break;
+        case 12: P('WAGON GETS SWAMPED FORDING RIVER--LOSE FOOD AND CLOTHES'); F = F - 30; C = C - 20; M = M - 20 - 20 * R(); break;
+        case 13:
+          P('WILD ANIMALS ATTACK!');
+          var B1w = await shoot();
+          if (B <= 39) { P('YOU WERE TOO LOW ON BULLETS--'); P('THE WOLVES OVERPOWERED YOU'); K8 = 1; return died(); }
+          if (B1w <= 2) P("NICE SHOOTIN' PARDNER---THEY DIDN'T GET MUCH"); else P('SLOW ON THE DRAW---THEY GOT AT YOUR FOOD AND CLOTHES');
+          B = B - 20 * B1w; C = C - B1w * 4; F = F - B1w * 8;
+          break;
+        case 14: P('HAIL STORM---SUPPLIES DAMAGED'); M = M - 5 - R() * 10; B = B - 200; M1 = M1 - 4 - R() * 3; break;
+        case 15:
+          if (E === 1) { r = await illness(); if (r) return r; }
+          else if (E === 3) { if (R() < .5) { r = await illness(); if (r) return r; } }
+          else if (R() > .25) { r = await illness(); if (r) return r; }
+          break;
+        default: P('HELPFUL INDIANS SHOW YOU WHERE TO FIND MORE FOOD'); F = F + 14;
+      }
+      status();
+      r = await mountains();
+      if (r) return r;
+      status();
+    }
+
+    // *** FINAL TURN *** (5430)
+    function finalTurn() {
+      var F9 = (2040 - M2) / (M - M2);
+      F = F + (1 - F9) * (8 * 5 * E);
+      P('');
+      P('YOU FINALLY ARRIVED AT OREGON CITY');
+      P('AFTER 2040 LONG MILES---HOORAY !!!!!');
+      P('A REAL PIONEER!');
+      P('');
+      F9 = INT(F9 * 14);
+      var days = D3 * 14 + F9;          // days since Monday March 29, which is day 88 of 1847
+      var DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+      var NAMES = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'], LEN = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+      var doy = 88 + days, mi = 0;
+      while (mi < 11 && doy > LEN[mi]) { doy -= LEN[mi]; mi++; }
+      var md = NAMES[mi] + ' ' + doy;
+      currentDate = DAYS[days % 7] + ' ' + md + ' 1847';
+      io.dateLine(currentDate);
+      P('');
+      if (B < 0) B = 0; if (C < 0) C = 0; if (M1 < 0) M1 = 0; if (T < 0) T = 0; if (F < 0) F = 0;
+      io.stock(F, B, C, M1, T);
+      M = 2040; status();
+      landmarks(M);
+      P('');
+      P('           PRESIDENT JAMES K. POLK SENDS YOU HIS');
+      P('                 HEARTIEST CONGRATULATIONS');
+      P('');
+      P('           AND WISHES YOU A PROSPEROUS LIFE AHEAD');
+      P('');
+      P('                      AT YOUR NEW HOME');
+      io.arrived(currentDate);
+      return ARRIVED;
+    }
+  }
+
+  // ------------------------------------------------------------ running it
+  var running = false;
+  async function start(fresh) {
+    if (running) return;
+    if (fresh || !journey) newJourney();
+    running = true;
+    logInner.textContent = '';
+    clearDock();
+    html('banner', 'THE OREGON TRAIL &nbsp;·&nbsp; MECC 1971');
+    var rnd = mulberry32(journey.seed);
+    var io = {
+      replayIndex: 0,
+      print: function (t) { line(t); },
+      ask: function (spec) { return ask(spec, io); },
+      rnd: rnd,
+      status: setStatus,
+      stock: stockTable,
+      dateLine: function (d) { html('banner', d); },
+      landmark: function (lm) { picture(lm[0], capital(lm[1])); },
+      grave: grave,
+      arrived: function () {}
+    };
+    var result = null;
+    try { result = await play(io); } catch (e) { line('Something went wrong: ' + (e && e.message ? e.message : e), 'sys'); }
+    running = false;
+    clearDock();
+    ending.hidden = false;
+    prompt.textContent = result === ARRIVED ? 'You made it to Oregon.' : result === DEAD ? 'The trail claimed another family.' : '';
+    scrollToEnd(true);
+  }
+  $('againBtn').addEventListener('click', function () { start(true); });
+  // dialogs are unavailable inside the viewer, so the button arms itself: a second tap within a few seconds confirms
+  (function () {
+    var btn = $('newBtn'), timer = null, original = btn.textContent;
+    btn.addEventListener('click', function () {
+      if (btn.dataset.armed === '1') {
+        clearTimeout(timer); btn.dataset.armed = ''; btn.textContent = original;
+        closeDrawer(); pending = null; running = false; start(true); return;
+      }
+      btn.dataset.armed = '1'; btn.textContent = 'Tap again to start over';
+      timer = setTimeout(function () { btn.dataset.armed = ''; btn.textContent = original; }, 4000);
+    });
+  })();
+
+  // keep the dock in view above the on-screen keyboard
+  if (window.visualViewport) {
+    var app = $('app'), fit = function () {
+      var vv = window.visualViewport;
+      if (Math.abs(window.innerHeight - vv.height) > 40) { app.style.top = vv.offsetTop + 'px'; app.style.height = vv.height + 'px'; app.style.bottom = 'auto'; }
+      else { app.style.top = ''; app.style.height = ''; app.style.bottom = ''; }
+      scrollToEnd(false);
+    };
+    window.visualViewport.addEventListener('resize', fit);
+    window.visualViewport.addEventListener('scroll', fit);
+  }
+  // new lines keep the printout scrolled to the end unless the reader has scrolled up
+  var obs = new MutationObserver(function () { if (atEnd() || logInner.children.length < 4) scrollToEnd(false); });
+  obs.observe(logInner, { childList: true, subtree: true });
+
+  journey = loadJourney();
+  start(false);
+})();
+</script>
+</body>
+</html>

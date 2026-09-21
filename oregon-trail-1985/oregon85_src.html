@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="color-scheme" content="light dark">
+<title>Oregon Trail 1985</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<style>
+  :root {
+    --paper: #F3EDE0; --paper-deep: #E9E1CF; --ink: #2B2620; --ink-soft: #5C544A; --muted: #8A8074; --rule: #D6CCB8; --rule-strong: #BDB19B;
+    --accent: #1F5E3A; --accent-ink: #F2FBF4; --accent-soft: #D5E7DA; --gold: #A67C2E; --danger: #A13A2C; --bar: #FBF8F1;
+    --mono: 'Courier Prime', 'Courier New', Courier, monospace; --sans: 'Alegreya Sans', 'Gill Sans', 'Segoe UI', system-ui, sans-serif; --fs: 15.5px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --paper: #14120F; --paper-deep: #1C1915; --ink: #ECE3D0; --ink-soft: #C6BBA6; --muted: #8E8574; --rule: #2C2822; --rule-strong: #443E35; --accent: #5FB07C; --accent-ink: #08170D; --accent-soft: #1E3A29; --gold: #D9B45C; --danger: #E07A6A; --bar: #0F0D0B; }
+  }
+  :root[data-theme="dark"] { --paper: #14120F; --paper-deep: #1C1915; --ink: #ECE3D0; --ink-soft: #C6BBA6; --muted: #8E8574; --rule: #2C2822; --rule-strong: #443E35; --accent: #5FB07C; --accent-ink: #08170D; --accent-soft: #1E3A29; --gold: #D9B45C; --danger: #E07A6A; --bar: #0F0D0B; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 15px; overflow: hidden; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  #app { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--paper); }
+  header.bar { flex: none; display: flex; align-items: center; gap: 10px; padding: 6px 16px; padding-top: calc(6px + env(safe-area-inset-top, 0px)); border-bottom: 1px solid var(--rule); background: var(--bar); }
+  header.bar > div:first-child { min-width: 0; }
+  header.bar h1 { margin: 0; font: 700 18px/1.2 var(--mono); letter-spacing: .02em; white-space: nowrap; }
+  header.bar .sub { font-size: 12px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .spacer { flex: 1; }
+  .iconbtn { border: 1px solid var(--rule-strong); background: transparent; border-radius: 6px; width: 34px; height: 30px; display: inline-grid; place-items: center; color: var(--ink); flex: none; }
+  .iconbtn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ---------- the Apple's screen ---------- */
+  #stageWrap { flex: none; background: #000; display: flex; justify-content: center; }
+  #stage { position: relative; width: 100%; max-width: 560px; aspect-ratio: 280 / 192; }
+  #stage canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
+  #caption { position: absolute; left: 0; right: 0; top: 83.3%; height: 10.4%; background: #fff; color: #000; font: 700 2.6cqw/1.25 var(--mono); padding: 0 1.5%; white-space: pre-line; overflow: hidden; }
+  #stage { container-type: inline-size; }
+  #epitaph { position: absolute; left: 20%; top: 32%; width: 55%; height: 24%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font: 700 3.6cqw/1.3 var(--mono); color: #111; white-space: pre-line; }
+  #pad { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr; }
+  #pad button { background: transparent; border: 0; color: rgba(255,255,255,.28); font: 700 11px/1 var(--sans); letter-spacing: .1em; display: flex; align-items: flex-start; justify-content: center; padding-top: 4px; }
+  #pad button[data-dir="walk"] { color: transparent; }
+  #pad button[data-dir="4"], #pad button[data-dir="0"] { align-items: center; }
+  #pad button[data-dir="5"], #pad button[data-dir="6"], #pad button[data-dir="7"] { align-items: flex-end; padding-bottom: 6px; }
+  #pad button:active { background: rgba(255,255,255,.08); }
+  #raftPad { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 1fr; }
+  #raftPad button { background: transparent; border: 0; color: rgba(255,255,255,.35); font: 700 26px/1 var(--sans); }
+  #raftPad button:active { background: rgba(255,255,255,.08); }
+  #huntClock { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--gold); width: 100%; transition: width .3s linear; }
+  #arrows { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; }
+
+  /* ---------- status strip ---------- */
+  #status { flex: none; border-bottom: 1px solid var(--rule); background: var(--bar); padding: 6px 16px 8px; }
+  #status .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: baseline; }
+  #status .stat { display: inline-flex; flex-direction: column; min-width: 48px; }
+  #status .stat b { font: 700 14.5px/1.2 var(--mono); white-space: nowrap; }
+  #status .stat small { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  #status .date { margin-left: auto; font: 700 12.5px/1.4 var(--sans); color: var(--ink-soft); letter-spacing: .04em; text-transform: uppercase; }
+  #party { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  #party b { color: var(--ink-soft); font-weight: 500; }
+  #party .ill { color: var(--danger); }
+  #party .gone { text-decoration: line-through; opacity: .6; }
+
+  /* ---------- printout ---------- */
+  #log { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+  #logInner { max-width: 66ch; margin: 0 auto; padding: 14px 16px 24px; font-family: var(--mono); font-size: var(--fs); line-height: 1.5; }
+  .line { white-space: pre-wrap; overflow-wrap: anywhere; min-height: 1.5em; }
+  .line.blank { min-height: .9em; }
+  .line.sys { font-family: var(--sans); color: var(--muted); font-size: 13.5px; }
+  .line.quiet { color: var(--ink-soft); font-size: calc(var(--fs) - 1.5px); }
+  .line.ill { color: var(--danger); font-weight: 700; }
+  .line.death { color: var(--danger); font-weight: 700; }
+  .ans { color: var(--accent); font-weight: 700; margin: 4px 0 6px; }
+  .ans::before { content: '> '; color: var(--muted); font-weight: 400; }
+  .banner { margin: 10px 0; padding: 10px 14px; border-left: 3px solid var(--accent); background: var(--paper-deep); font-weight: 700; }
+  .card { margin: 10px 0; padding: 10px 14px; border: 1px solid var(--rule-strong); border-radius: 8px; background: var(--paper-deep); }
+  .card h4 { margin: 0 0 6px; font: 700 12px/1.2 var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  table.sheet { border-collapse: collapse; width: 100%; font-family: var(--mono); font-size: calc(var(--fs) - 1px); }
+  table.sheet td { padding: 1px 0; }
+  table.sheet td:last-child { text-align: right; font-weight: 700; white-space: nowrap; }
+  table.sheet tr.total td { border-top: 1px solid var(--rule-strong); padding-top: 4px; }
+  .talk { font-style: italic; }
+
+  /* ---------- dock ---------- */
+  #dock { flex: none; border-top: 1px solid var(--rule); background: var(--bar); padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); }
+  #prompt { font-family: var(--sans); font-size: 14.5px; color: var(--ink-soft); margin: 0 4px 8px; white-space: pre-wrap; max-height: 9.5em; overflow-y: auto; }
+  #choices { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 1px solid var(--rule-strong); background: var(--paper); border-radius: 22px; padding: 9px 16px; font-family: var(--sans); font-weight: 500; font-size: 15px; color: var(--ink); text-align: left; }
+  .chip.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .chip:active { transform: translateY(1px); }
+  .chip .num { display: inline-block; min-width: 1.2em; margin-right: 6px; color: var(--muted); font-family: var(--mono); font-size: 13px; }
+  .chip.primary .num { color: var(--accent-ink); opacity: .75; }
+  #inputRow { display: flex; gap: 8px; align-items: center; }
+  #inputRow input { flex: 1; min-width: 0; font-family: var(--mono); font-size: 18px; padding: 9px 12px; border: 1.5px solid var(--rule-strong); border-radius: 8px; background: var(--paper); color: var(--ink); }
+  #inputRow input:focus { border-color: var(--accent); outline: none; }
+  #inputRow .btn { border: 0; background: var(--accent); color: var(--accent-ink); border-radius: 8px; padding: 10px 18px; font-weight: 700; }
+  .quick { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .quick button { border: 1px solid var(--rule); background: transparent; border-radius: 14px; padding: 4px 10px; font-size: 13px; color: var(--ink-soft); font-family: var(--mono); }
+  #travelRow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  #travelRow .hint { flex: 1; font-size: 12.5px; color: var(--muted); }
+  #huntRow, #raftRow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .bigbtn { border: 1px solid var(--rule-strong); background: var(--paper); border-radius: 12px; padding: 12px 18px; font-weight: 700; font-size: 16px; min-width: 96px; }
+  .bigbtn.fire { background: var(--danger); color: #fff; border-color: var(--danger); }
+  .bigbtn.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .hint { font-family: var(--sans); font-size: 12.5px; color: var(--muted); margin: 6px 4px 0; }
+  #ending { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* ---------- drawer ---------- */
+  #scrim { position: fixed; inset: 0; background: rgba(0,0,0,.35); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 30; }
+  #scrim.open { opacity: 1; pointer-events: auto; }
+  #drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(360px, 92vw); background: var(--paper); border-left: 1px solid var(--rule); transform: translateX(100%); transition: transform .22s; z-index: 31; overflow-y: auto; padding: 16px 18px calc(16px + env(safe-area-inset-bottom, 0px)); }
+  #drawer.open { transform: none; }
+  #drawer h2 { font: 700 20px/1.2 var(--mono); margin: 0 0 14px; display: flex; align-items: center; }
+  #drawer h3 { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 20px 0 8px; font-weight: 700; }
+  .opt { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--rule); }
+  .opt .lbl { flex: 1; }
+  .opt small { display: block; color: var(--muted); font-size: 12.5px; }
+  .seg { display: inline-flex; border: 1px solid var(--rule-strong); border-radius: 6px; overflow: hidden; }
+  .seg button { border: 0; background: transparent; padding: 5px 10px; font-size: 13px; color: var(--ink); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+  .btn { border: 1px solid var(--rule-strong); background: var(--paper); color: var(--ink); border-radius: 8px; padding: 8px 14px; font-weight: 500; }
+  .btn.danger { border-color: var(--danger); color: var(--danger); }
+  .about { font-size: 13.5px; color: var(--ink-soft); line-height: 1.45; }
+  .about a { color: var(--accent); }
+  #drawerTop table.sheet { font-size: 13px; }
+  @media (max-width: 420px) { header.bar h1 { font-size: 16px; } #status .row { gap: 9px; } #status .stat { min-width: 40px; } }
+  @media (min-height: 900px) { #stage { max-width: 700px; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="bar">
+    <div>
+      <h1>THE OREGON TRAIL</h1>
+      <div class="sub">MECC · Apple II · 1985</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="iconbtn" id="menuBtn" title="Menu" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+  </header>
+
+  <div id="stageWrap"><div id="stage">
+    <canvas id="screen" width="280" height="192"></canvas>
+    <div id="caption" hidden></div>
+    <div id="epitaph" hidden></div>
+    <div id="huntClock" hidden></div>
+    <div id="pad" hidden>
+      <button data-dir="3">NW</button><button data-dir="2">N</button><button data-dir="1">NE</button>
+      <button data-dir="4">W</button><button data-dir="walk">·</button><button data-dir="0">E</button>
+      <button data-dir="5">SW</button><button data-dir="6">S</button><button data-dir="7">SE</button>
+    </div>
+    <div id="raftPad" hidden><button data-k="left">◀</button><button data-k="right">▶</button></div>
+  </div></div>
+
+  <div id="status">
+    <div class="row">
+      <span class="stat"><b id="sWeather">–</b><small>Weather</small></span>
+      <span class="stat"><b id="sHealth">–</b><small>Health</small></span>
+      <span class="stat"><b id="sFood">–</b><small>Food</small></span>
+      <span class="stat"><b id="sNext">–</b><small id="sNextLabel">Next landmark</small></span>
+      <span class="stat"><b id="sMiles">–</b><small>Miles traveled</small></span>
+      <span class="stat"><b id="sCash">–</b><small>Cash</small></span>
+      <span class="date" id="sDate"></span>
+    </div>
+    <div id="party"></div>
+  </div>
+
+  <div id="log"><div id="logInner"></div></div>
+
+  <div id="dock">
+    <div id="prompt"></div>
+    <div id="choices"></div>
+    <div id="inputRow" hidden>
+      <input id="inputBox" type="text" autocomplete="off" autocorrect="off" spellcheck="false">
+      <button class="btn" id="inputGo" type="button">Go</button>
+    </div>
+    <div class="quick" id="quick" hidden></div>
+    <div id="travelRow" hidden>
+      <button class="chip primary" id="stopBtn" type="button">Stop to size up the situation</button>
+      <span class="hint" id="travelHint"></span>
+    </div>
+    <div id="huntRow" hidden>
+      <button class="bigbtn" id="walkBtn" type="button">Walk</button>
+      <button class="bigbtn" id="turnL" type="button">↺ Turn</button>
+      <button class="bigbtn" id="turnR" type="button">Turn ↻</button>
+      <button class="bigbtn fire" id="fireBtn" type="button">Fire</button>
+      <span class="hint" id="huntHint"></span>
+    </div>
+    <div id="raftRow" hidden>
+      <button class="bigbtn" id="raftL" type="button">◀ Left</button>
+      <button class="bigbtn" id="raftR" type="button">Right ▶</button>
+      <span class="hint">Steer between the rocks; after the third sign, land on the far bank.</span>
+    </div>
+    <div class="hint" id="hint" hidden></div>
+    <div id="ending" hidden><button class="chip primary" id="againBtn" type="button">Set out again</button></div>
+  </div>
+</div>
+
+<div id="scrim"></div>
+<aside id="drawer" aria-label="Menu">
+  <h2>Menu <span class="spacer"></span><button class="iconbtn" id="closeDrawer" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h2>
+  <h3>Journey</h3>
+  <div class="opt">
+    <div class="lbl">Start a new journey<small>The current one is kept here in the browser and carries on after a reload; starting again throws it away.</small></div>
+    <button class="btn danger" id="newBtn" type="button">New journey</button>
+  </div>
+  <h3>The Oregon Top Ten</h3>
+  <div id="drawerTop"></div>
+  <h3>Settings</h3>
+  <div class="opt">
+    <div class="lbl">Sound<small>The tune at each landmark, as the Apple II played it.</small></div>
+    <div class="seg" id="segSound" role="group"><button data-val="on">On</button><button data-val="off">Off</button></div>
+  </div>
+  <div class="opt">
+    <div class="lbl">Days pass<small>How quickly the wagon rolls between stops.</small></div>
+    <div class="seg" id="segSpeed" role="group"><button data-val="slow">Slowly</button><button data-val="normal">Normal</button><button data-val="fast">Fast</button></div>
+  </div>
+  <div class="opt">
+    <div class="lbl">Monitor</div>
+    <div class="seg" id="segMonitor" role="group"><button data-val="colour">Colour</button><button data-val="mono">Mono</button></div>
+  </div>
+  <div class="opt">
+    <div class="lbl">Theme</div>
+    <div class="seg" id="segTheme" role="group"><button data-val="auto">Auto</button><button data-val="light">Paper</button><button data-val="dark">Night</button></div>
+  </div>
+  <div class="opt">
+    <div class="lbl">Text size</div>
+    <div class="seg" id="segFont" role="group"><button data-val="14">A</button><button data-val="15.5">A</button><button data-val="18">A</button></div>
+  </div>
+  <h3>About</h3>
+  <p class="about">MECC's 1985 <em>The Oregon Trail</em> for the Apple II (version 1.4), ported program by program from the Applesoft BASIC on its two disks: the store, the day-by-day travel with its weather, health, illnesses and mishaps, the river crossings, trading, the people you can talk to at each landmark, the Barlow Road and the Columbia, and the Top Ten. Every price, probability and message is the original's; the hunting and rafting screens were rebuilt from the game's machine code, with the same animals, speeds and timing. The pictures, sprites and tunes are the disks' own, shown with the colour rules of an Apple II monitor. The numbered questions are buttons here, and the arcade bits take touch as well as keys.</p>
+  <p class="about">Hunting: tap where you want to aim (or use the turn buttons; on a keyboard, arrows turn and <code>I O P K ; , . /</code> aim), Walk toggles walking, Fire shoots — one bullet at a time. Rafting: left and right.</p>
+</aside>
+
+<script>/*__ENGINE__*/</script>
+<script>/*__GAME__*/</script>
+<script>/*__HUNT__*/</script>
+<script>/*__RAFT__*/</script>
+<script>/*__FONT__*/</script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var DATA = /*__DATA__*/null;
+
+  // ------------------------------------------------------------ settings
+  var settings = { theme: 'auto', font: '15.5', sound: 'on', speed: 'normal', monitor: 'colour' };
+  try { Object.assign(settings, JSON.parse(localStorage.getItem('oregon85.settings')) || {}); } catch (e) {}
+  function saveSettings() { try { localStorage.setItem('oregon85.settings', JSON.stringify(settings)); } catch (e) {} }
+  function applyLooks() {
+    if (settings.theme === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', settings.theme);
+    document.documentElement.style.setProperty('--fs', settings.font + 'px');
+    needRender = true;
+  }
+  function seg(id, key) {
+    var el = $(id);
+    Array.prototype.forEach.call(el.querySelectorAll('button'), function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.val === String(settings[key])));
+      b.addEventListener('click', function () {
+        settings[key] = b.dataset.val; saveSettings(); applyLooks();
+        Array.prototype.forEach.call(el.querySelectorAll('button'), function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+        if (key === 'sound' && settings.sound === 'off') tunes.stop();
+      });
+    });
+  }
+  seg('segTheme', 'theme'); seg('segFont', 'font'); seg('segSound', 'sound'); seg('segSpeed', 'speed'); seg('segMonitor', 'monitor'); applyLooks();
+  var drawer = $('drawer'), scrim = $('scrim');
+  function openDrawer() { renderTopTen($('drawerTop'), loadTopTen()); drawer.classList.add('open'); scrim.classList.add('open'); }
+  function closeDrawer() { drawer.classList.remove('open'); scrim.classList.remove('open'); }
+  $('menuBtn').addEventListener('click', openDrawer);
+  $('closeDrawer').addEventListener('click', closeDrawer);
+  scrim.addEventListener('click', closeDrawer);
+
+  // ------------------------------------------------------------ the Apple II assets
+  var screens = {}, libs = {}, tuneBytes = {};
+  Object.keys(DATA.pck).forEach(function (k) { screens[k] = A2.unpackScreen(A2.b64(DATA.pck[k])); });
+  Object.keys(DATA.ima).forEach(function (k) { libs[k] = A2.library(A2.b64(DATA.ima[k])); });
+  Object.keys(DATA.tunes).forEach(function (k) { tuneBytes[k] = A2.b64(DATA.tunes[k]); });
+  var T = DATA.tables; T.talk = DATA.talk;
+  var tunes = A2.tunePlayer();
+
+  // ------------------------------------------------------------ the stage
+  var canvas = $('screen'), ctx = canvas.getContext('2d'), imageData = ctx.createImageData(280, 192), screen = new A2.Screen();
+  var stage = { kind: 'blank', p: {} }, needRender = true, eventImage = null, hunt = null, raft = null;
+  function img(ref) { var s = ref.split(':'); return libs[s[0]].get(parseInt(s[1], 10)); }
+  function setStage(kind, p) { stage = { kind: kind, p: p || {} }; eventImage = null; $('caption').hidden = true; $('epitaph').hidden = true; needRender = true; }
+  function drawStage() {
+    var p = stage.p;
+    switch (stage.kind) {
+      case 'title':
+        screen.clear(); screen.put(libs.FIRST.get(2), 0, 6, 'or'); screen.put(libs.FIRST.get(3), 7, 34, 'or'); screen.put(libs.FIRST.get(1), 7, 60, 'or'); break;
+      case 'picture':
+        screen.load(screens[p.name]);
+        if (p.name.charAt(0) === 'L') screen.box(0, 160, 279, 191, 0);
+        if (p.caption) { $('caption').textContent = p.caption; $('caption').hidden = false; }
+        break;
+      case 'store':
+        screen.clear(); screen.put(libs.FIRST.get(4), 0, 50, 'or'); screen.put(libs.OREGON.get(8), 77, 40, 'or'); screen.put(libs.OREGON.get(3), 150, 30, 'or'); screen.put(libs.OREGON.get(2), 84, 90, 'or'); screen.put(libs.OREGON.get(5), 150, 100, 'or'); screen.put(libs.OREGON.get(6), 180, 140, 'or'); break;
+      case 'travel': drawTravel(p); break;
+      case 'map': drawMap(p); break;
+      case 'tombstone':
+        screen.load(screens.TS);
+        $('epitaph').textContent = 'Here lies\n' + (p.name || '') + (p.epitaph ? '\n' + p.epitaph : ''); $('epitaph').hidden = false;
+        break;
+      case 'river':
+        screen.load(screens['L' + [1, 2, 9, 12][p.rc]]); screen.box(0, 160, 279, 191, 0); break;
+      case 'crossing':
+        screen.clear(); screen.put(libs.RIVER.get(5), 58, 24, 'or');
+        screen.put(libs.RIVER.get(p.tipped ? 4 : (p.kind || 2)), 102, 63, 'or');
+        break;
+      case 'hunt': if (hunt) hunt.draw(); break;
+      case 'raft': if (raft) raft.draw(); break;
+      default: screen.clear();
+    }
+    if (eventImage) screen.put(img(eventImage.ref), eventImage.x, eventImage.y, 'or');
+  }
+  var travelAnim = { ix: 0, frame: 1 };
+  function stamp(x, y, text, inverse) { A2FONT.stamp(screen, x, y, text, inverse); }
+  var lastStatus = null;
+  function drawTravel(p) {
+    var lib = libs[p.scenery || 'PRAIRIE'];
+    screen.clear();
+    screen.put(lib.get(4), 0, 13, 'copy');
+    screen.box(0, 60, 278, 110, p.ground || 1);
+    if (p.landmark) screen.put(lib.get(p.landmark), travelAnim.ix, 31, 'or');
+    screen.put(lib.get(travelAnim.frame), 186, 32, 'or');
+    if (p.weather >= 6 && p.weather <= 9) screen.put(libs.EVENTS.get(p.weather >= 7 && p.weather !== 8 ? 3 : 2), 118, 0, 'or');
+    // the box below the picture, as the original laid it out
+    screen.box(0, 111, 278, 120, 3); stamp(14, 112, 'Press RETURN to size up the situation', true);
+    if (lastStatus) {
+      var st = lastStatus, labels = [['Date:', 95], ['Weather:', 70], ['Health:', 81], ['Food:', 95], ['Next landmark:', 23], ['Miles traveled:', 20]];
+      var values = [st.date, st.weather, st.health, st.food + ' pounds', st.next + ' miles', st.miles + ' miles'];
+      for (var i = 0; i < 6; i++) { stamp(labels[i][1], 125 + 9 * i, labels[i][0]); stamp(135, 125 + 9 * i, values[i]); }
+    }
+  }
+  function drawMap(p) {
+    screen.load(screens.M0);
+    var mx = T.landmarks.mapx, my = T.landmarks.mapy, v = p.visited || [];
+    for (var i = 0; i + 1 < v.length; i++) line(mx[v[i]], my[v[i]], mx[v[i + 1]], my[v[i + 1]]);
+    if (p.lm !== p.nm && p.dd) {
+      var x1 = mx[p.nm], x2 = mx[p.lm], y1 = my[p.nm], y2 = my[p.lm];
+      var z = p.d * (x2 - x1) / p.dd, x = z + x1, y = x2 === x1 ? y2 : y2 - (y2 - y1) / (x2 - x1) * (x2 - x);
+      line(x2, y2, Math.round(x), Math.round(y));
+    }
+  }
+  function line(x1, y1, x2, y2) {   // HCOLOR=4 (black) on the white map, a pixel wide, doubled for visibility
+    var dx = Math.abs(x2 - x1), dy = -Math.abs(y2 - y1), sx = x1 < x2 ? 1 : -1, sy = y1 < y2 ? 1 : -1, err = dx + dy, x = x1, y = y1;
+    while (true) {
+      screen.box(x, y, x, y + 1, 0);
+      if (x === x2 && y === y2) break;
+      var e2 = 2 * err; if (e2 >= dy) { err += dy; x += sx; } if (e2 <= dx) { err += dx; y += sy; }
+    }
+  }
+  function render() { if (!needRender && stage.kind !== 'hunt' && stage.kind !== 'raft') return; needRender = false; drawStage(); screen.render(imageData, settings.monitor === 'mono'); ctx.putImageData(imageData, 0, 0); }
+  (function frame() { render(); requestAnimationFrame(frame); })();
+
+  // ------------------------------------------------------------ printout
+  var log = $('log'), logInner = $('logInner');
+  function atEnd() { return log.scrollHeight - log.scrollTop - log.clientHeight < 60; }
+  function scrollToEnd(smooth) { if (smooth && log.scrollTo) log.scrollTo({ top: log.scrollHeight, behavior: 'smooth' }); else log.scrollTop = log.scrollHeight; }
+  function line$(text, cls) { var d = document.createElement('div'); d.className = 'line' + (text === '' ? ' blank' : '') + (cls ? ' ' + cls : ''); d.textContent = text; logInner.appendChild(d); return d; }
+  function html(cls, inner) { var d = document.createElement('div'); d.className = cls; d.innerHTML = inner; logInner.appendChild(d); return d; }
+  function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+  function sheet(title, rows, totalRow) {
+    var h = '<h4>' + esc(title) + '</h4><table class="sheet">' + rows.map(function (r) { return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>'; }).join('');
+    if (totalRow) h += '<tr class="total"><td>' + esc(totalRow[0]) + '</td><td>' + esc(totalRow[1]) + '</td></tr>';
+    return html('card', h + '</table>');
+  }
+  function renderTopTen(el, top) {
+    el.innerHTML = '<table class="sheet"><tr><td>Name</td><td>Points</td><td>Rating</td></tr>' + top.map(function (r) { return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td><td>' + esc(r[2]) + '</td></tr>'; }).join('') + '</table>';
+  }
+
+  // ------------------------------------------------------------ status
+  function setStatus(s) {
+    lastStatus = s; if (stage.kind === 'travel') needRender = true;
+    $('sWeather').textContent = s.weather; $('sHealth').textContent = s.health; $('sFood').textContent = s.food + ' lb';
+    $('sNext').textContent = s.nextName ? s.next + ' mi' : '–'; $('sNextLabel').textContent = s.nextName ? 'To ' + s.nextName.replace(/^the /, '') : 'Next landmark';
+    $('sMiles').textContent = s.miles; $('sCash').textContent = '$' + s.cash; $('sDate').textContent = s.date;
+    $('party').innerHTML = (s.party || []).map(function (n, i) { var ill = s.ill && s.ill[i] > 0; return '<b class="' + (ill ? 'ill' : '') + '">' + esc(n) + '</b>'; }).join(' · ');
+  }
+
+  // ------------------------------------------------------------ the journey: a seed and every answer given, replayed to carry on
+  var journey = null, replayIndex = 0, pending = null;
+  function loadJourney() { try { var j = JSON.parse(localStorage.getItem('oregon85.journey')); if (j && j.v === 1 && typeof j.seed === 'number' && Array.isArray(j.answers)) return j; } catch (e) {} return null; }
+  function saveJourney() { try { localStorage.setItem('oregon85.journey', JSON.stringify(journey)); } catch (e) {} }
+  function newJourney() { journey = { v: 1, seed: (Math.random() * 4294967296) >>> 0, answers: [], tombs: loadTombstones(), top: loadTopTen() }; saveJourney(); }
+  function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function replaying() { return replayIndex < journey.answers.length; }
+  function record(v) { journey.answers.push(v); replayIndex = journey.answers.length; saveJourney(); }
+  function loadTopTen() { try { var t = JSON.parse(localStorage.getItem('oregon85.topten')); if (Array.isArray(t) && t.length === 10) return t; } catch (e) {} return Oregon85.ORIGINAL_TOP_TEN.map(function (r) { return r.slice(); }); }
+  function loadTombstones() { try { var t = JSON.parse(localStorage.getItem('oregon85.tombs')); if (Array.isArray(t)) return t; } catch (e) {} return Oregon85.ORIGINAL_TOMBSTONES.slice(); }
+
+  // ------------------------------------------------------------ the dock: how a question gets answered
+  var prompt = $('prompt'), choices = $('choices'), inputRow = $('inputRow'), inputBox = $('inputBox'), quick = $('quick'), hint = $('hint'), ending = $('ending');
+  function clearDock() {
+    prompt.textContent = ''; choices.textContent = ''; inputRow.hidden = true; quick.hidden = true; quick.textContent = ''; hint.hidden = true; ending.hidden = true;
+    $('travelRow').hidden = true; $('huntRow').hidden = true; $('raftRow').hidden = true;
+  }
+  function answerLine(text) { if (text !== null && text !== undefined) line$(text, 'ans'); }
+  function makeChip(label, num, primary, onClick) {
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'chip' + (primary ? ' primary' : '');
+    if (num !== undefined && num !== null) { var n = document.createElement('span'); n.className = 'num'; n.textContent = num; b.appendChild(n); }
+    b.appendChild(document.createTextNode(label)); b.addEventListener('click', onClick); return b;
+  }
+  function settle(value, echo) {
+    if (!pending) return;
+    var p = pending; pending = null; clearDock(); answerLine(echo); record(value); p.resolve(value);
+  }
+  function echoFor(spec, v) {
+    if (spec.type === 'choice') { var o = spec.options.filter(function (x) { return x.v === v; })[0]; return o ? (o.num !== undefined ? o.num + '  ' : '') + o.label : String(v); }
+    if (spec.type === 'yesno') return v ? 'Yes' : 'No';
+    if (spec.type === 'number') return String(v);
+    if (spec.type === 'text') return v === '' ? '(Return)' : v;
+    return String(v);
+  }
+  function ask(spec) {
+    if (spec.prompt && !spec.menu) line$(spec.prompt, 'quiet');
+    if (replaying()) { var v = journey.answers[replayIndex++]; answerLine(echoFor(spec, v)); return Promise.resolve(v); }
+    return new Promise(function (resolve) {
+      pending = { resolve: resolve };
+      clearDock(); tunes.unlock();
+      prompt.textContent = spec.prompt || '';
+      if (spec.type === 'choice') spec.options.forEach(function (o, i) { choices.appendChild(makeChip(o.label, o.num, i === 0 && spec.primaryFirst, function () { settle(o.v, echoFor(spec, o.v)); })); });
+      else if (spec.type === 'yesno') { choices.appendChild(makeChip('Yes', null, true, function () { settle(true, 'Yes'); })); choices.appendChild(makeChip('No', null, false, function () { settle(false, 'No'); })); }
+      else if (spec.type === 'number' || spec.type === 'text') {
+        inputRow.hidden = false; inputBox.value = ''; inputBox.placeholder = spec.placeholder || (spec.type === 'number' ? 'Number' : '');
+        inputBox.type = 'text'; inputBox.inputMode = spec.type === 'number' ? 'numeric' : 'text'; inputBox.maxLength = spec.type === 'number' ? (spec.digits || 4) : (spec.maxlen || 29);
+        if (spec.quick && spec.quick.length) { quick.hidden = false; spec.quick.forEach(function (q) { var b = document.createElement('button'); b.type = 'button'; b.textContent = String(q); b.addEventListener('click', function () { inputBox.value = String(q); submitInput(); }); quick.appendChild(b); }); }
+        if (spec.type === 'text' && spec.placeholder) { quick.hidden = false; var kb = document.createElement('button'); kb.type = 'button'; kb.textContent = 'Keep "' + spec.placeholder + '"'; kb.addEventListener('click', function () { inputBox.value = ''; submitInput(); }); quick.appendChild(kb); }
+        setTimeout(function () { inputBox.focus(); }, 50);
+      }
+      pending.spec = spec;
+      scrollToEnd(true);
+    });
+  }
+  function submitInput() {
+    if (!pending) return;
+    var spec = pending.spec;
+    if (spec.type === 'number') {
+      var n = parseInt(String(inputBox.value).replace(/[^0-9]/g, ''), 10);
+      if (!isFinite(n)) { if (inputBox.value.trim() === '') n = 0; else { inputBox.focus(); return; } }
+      settle(n, String(n));
+    } else {
+      var s = inputBox.value.replace(/[^\w .,'-]/g, '').slice(0, spec.maxlen || 29).trim();
+      if (!s && !spec.allowEmpty && !spec.placeholder) { inputBox.focus(); return; }
+      settle(s, s === '' ? '(Return)' : s);
+    }
+  }
+  $('inputGo').addEventListener('click', submitInput);
+  inputBox.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); submitInput(); } });
+  // a message that waits for the space bar
+  function notice(text, opts) {
+    opts = opts || {};
+    if (opts.image) { var pos = { 'EVENTS:1': [105, 0], 'EVENTS:2': [118, 0], 'EVENTS:3': [105, 0], 'EVENTS:4': [185, 29], 'EVENTS:5': [184, 32], 'EVENTS:6': [150, 32], 'EVENTS:7': [263, 35], 'EVENTS:8': [130, 47] }[opts.image] || [105, 0]; eventImage = { ref: opts.image, x: pos[0], y: pos[1] }; needRender = true; }
+    if (!opts.supplies && !opts.score && !opts.topten) line$(text, opts.tag || (opts.talk ? 'talk' : ''));
+    if (replaying()) { replayIndex++; return Promise.resolve(); }
+    return new Promise(function (resolve) {
+      pending = { resolve: resolve }; clearDock();
+      prompt.textContent = opts.supplies || opts.score || opts.topten ? text : '';
+      choices.appendChild(makeChip('Continue', null, true, function () { settle(null, null); }));
+      scrollToEnd(true);
+    });
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.target === inputBox) return;
+    if (hunt || raft) return;
+    if (!pending) return;
+    if (e.key === ' ' && choices.children.length === 1) { e.preventDefault(); choices.children[0].click(); }
+    else if (/^[1-9]$/.test(e.key) && pending.spec && pending.spec.type === 'choice') { var i = parseInt(e.key, 10) - 1; if (choices.children[i]) choices.children[i].click(); }
+    else if ((e.key === 'y' || e.key === 'Y') && pending.spec && pending.spec.type === 'yesno') choices.children[0].click();
+    else if ((e.key === 'n' || e.key === 'N') && pending.spec && pending.spec.type === 'yesno') choices.children[1].click();
+    else if (e.key === 'Enter' && stopPending) stopPending();
+  });
+
+  // ------------------------------------------------------------ a day on the trail
+  var stopPending = null, stopWanted = false;
+  $('stopBtn').addEventListener('click', function () { stopWanted = true; $('stopBtn').textContent = 'Stopping…'; });
+  function travelDay(state) {
+    setStage('travel', state);
+    if (replaying()) { var v = journey.answers[replayIndex++]; travelAnim.ix = state.ix; travelAnim.frame = state.frame; if (v) line$('You stop to size up the situation.', 'sys'); return Promise.resolve(!!v); }
+    return new Promise(function (resolve) {
+      clearDock();
+      $('travelRow').hidden = false; $('stopBtn').textContent = 'Stop to size up the situation'; $('travelHint').textContent = 'The wagon rolls a day at a time; stop to hunt, rest, trade or change your pace.';
+      var ms = { slow: 700, normal: 380, fast: 120 }[settings.speed] || 380, start = performance.now(), fromIx = travelAnim.ix, toIx = state.ix;
+      stopPending = function () { stopWanted = true; };
+      (function step() {
+        var t = Math.min(1, (performance.now() - start) / ms);
+        travelAnim.ix = Math.round((fromIx + (toIx - fromIx) * t) / 2) * 2; travelAnim.frame = 1 + (Math.floor(t * 3 + state.frame) % 3); needRender = true;
+        if (t < 1) { requestAnimationFrame(step); return; }
+        stopPending = null;
+        var stop = stopWanted; stopWanted = false;
+        record(stop);
+        if (stop) line$('You stop to size up the situation.', 'sys');
+        resolve(stop);
+      })();
+    });
+  }
+  function restDay(date) { line$(date + ' — resting', 'sys'); }
+
+  // ------------------------------------------------------------ hunting
+  var pad = $('pad');
+  pad.addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b || !hunt) return; var d = b.dataset.dir; hunt.key(d === 'walk' ? 'walk' : parseInt(d, 10)); });
+  $('walkBtn').addEventListener('click', function () { if (hunt) hunt.key('walk'); });
+  $('turnL').addEventListener('click', function () { if (hunt) hunt.key('left'); });
+  $('turnR').addEventListener('click', function () { if (hunt) hunt.key('right'); });
+  $('fireBtn').addEventListener('click', function () { if (hunt) hunt.key('fire'); });
+  var HUNT_KEYS = { ';': 0, 'p': 1, 'o': 2, 'i': 3, 'k': 4, ',': 5, '.': 6, '/': 7, 'ArrowLeft': 'left', 'ArrowUp': 'left', 'ArrowRight': 'right', 'ArrowDown': 'right', ' ': 'fire', 'Enter': 'walk' };
+  document.addEventListener('keydown', function (e) {
+    if (hunt) { var k = HUNT_KEYS[e.key.length === 1 ? e.key.toLowerCase() : e.key]; if (k !== undefined) { e.preventDefault(); hunt.key(k); } }
+    if (raft) { if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); raft.key('left'); } if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); raft.key('right'); } }
+  });
+  function runHunt(params) {
+    line$('Hunting.  ' + params.bullets + ' bullets.', 'sys');
+    if (replaying()) { var v = journey.answers[replayIndex++]; line$(huntSummary(v), 'sys'); return Promise.resolve(v); }
+    return new Promise(function (resolve) {
+      clearDock(); tunes.stop();
+      hunt = new Hunt(screen, libs, params);
+      setStage('hunt'); pad.hidden = false; $('huntClock').hidden = false; $('huntRow').hidden = false;
+      $('walkBtn').classList.remove('on');
+      var TICK = 10, acc = 0, last = performance.now();
+      (function loop(now) {
+        acc += Math.min(200, now - last); last = now;
+        while (acc >= TICK) { acc -= TICK; if (hunt.tick()) break; }
+        $('walkBtn').classList.toggle('on', hunt.walking);
+        $('huntHint').textContent = hunt.bullets + ' bullets · ' + hunt.kills.length + ' shot';
+        $('huntClock').style.width = (100 * hunt.clock / Hunt.CLOCK) + '%';
+        if (!hunt.done) { requestAnimationFrame(loop); return; }
+        var res = hunt.result(); hunt = null; pad.hidden = true; $('huntClock').hidden = true;
+        record(res); line$(huntSummary(res), 'sys');
+        resolve(res);
+      })(last);
+    });
+  }
+  function huntSummary(res) { var names = res.kills.map(function (k) { return Hunt.KINDS[k].name; }); return (names.length ? 'Shot: ' + names.join(', ') + '.' : 'Nothing shot.') + '  ' + res.bullets + ' bullets left.'; }
+
+  // ------------------------------------------------------------ rafting
+  $('raftL').addEventListener('click', function () { if (raft) raft.key('left'); });
+  $('raftR').addEventListener('click', function () { if (raft) raft.key('right'); });
+  $('raftPad').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b && raft) raft.key(b.dataset.k); });
+  function runRaft(params) {
+    line$('Floating down the Columbia River.', 'sys');
+    if (replaying()) {
+      var v = journey.answers[replayIndex++];
+      (v.events || []).forEach(function (kind) { var r = params.collision(kind); line$(r.text); if (r.then) line$(r.then, 'death'); });
+      return Promise.resolve(v);
+    }
+    return new Promise(function (resolve) {
+      clearDock(); tunes.stop();
+      raft = new Raft(screen, libs, screens, params.collision);
+      setStage('raft'); $('raftPad').hidden = false; $('raftRow').hidden = false;
+      var events = [], TICK = 160, acc = 0, last = performance.now(), paused = false;
+      function finish() {
+        var res = { events: events, landed: raft.landed }; raft = null; $('raftPad').hidden = true;
+        record(res); resolve(res);
+      }
+      (function loop(now) {
+        if (paused) { last = now; requestAnimationFrame(loop); return; }
+        acc += Math.min(400, now - last); last = now;
+        var r = null;
+        while (acc >= TICK) { acc -= TICK; r = raft.tick(); if (r) break; }
+        if (r === 'message') {
+          events.push(raft.ROCK === -1 ? 'shore' : 'rock');
+          var m = raft.message; paused = true;
+          line$(m.text);
+          pending = { resolve: function () { if (m.then) { line$(m.then, 'death'); } paused = false; if (raft.stopped) finish(); else { clearDock(); $('raftRow').hidden = false; } } };
+          clearDock(); prompt.textContent = ''; choices.appendChild(makeChip('Continue', null, true, function () { var p = pending; pending = null; p.resolve(); }));
+          requestAnimationFrame(loop); return;
+        }
+        if (r === 'done') { finish(); return; }
+        requestAnimationFrame(loop);
+      })(last);
+    });
+  }
+
+  // ------------------------------------------------------------ running it
+  var running = false;
+  async function start(fresh) {
+    if (running) return;
+    if (fresh || !journey) newJourney();
+    running = true; replayIndex = 0; pending = null; hunt = null; raft = null; pad.hidden = true; $('raftPad').hidden = true; $('huntClock').hidden = true;
+    logInner.textContent = ''; clearDock();
+    html('banner', 'THE OREGON TRAIL &nbsp;·&nbsp; MECC 1985');
+    var rnd = mulberry32(journey.seed);
+    var io = {
+      rnd: rnd, print: function (t) { line$(t); }, ask: ask, notice: notice, travelDay: travelDay, restDay: restDay, hunt: runHunt, raft: runRaft,
+      stage: setStage, status: setStatus,
+      tune: function (name) { if (settings.sound === 'on' && !replaying() && tuneBytes[name]) tunes.play(tuneBytes[name]); },
+      party: function (names) { $('party').innerHTML = names.map(esc).map(function (n) { return '<b>' + n + '</b>'; }).join(' · '); },
+      storeSheet: function (s) { if (!s) return; sheet("Matt's General Store — " + s.date, s.lines.map(function (l) { return [l[0], '$' + Oregon85.money(l[1])]; }), ['Total bill  (you have $' + Oregon85.money(s.cash) + ')', '$' + Oregon85.money(s.total)]); },
+      supplies: function (s) { sheet('Your supplies', [['oxen', s.oxen], ['sets of clothing', s.clothing], ['bullets', s.bullets], ['wagon wheels', s.wheels], ['wagon axles', s.axles], ['wagon tongues', s.tongues], ['pounds of food', Math.floor(s.food + 0.51)], ['money left', '$' + s.cash]]); },
+      scoreSheet: function (s) { sheet('Points for arriving in Oregon', s.rows, ['Total' + (s.note ? '  (' + s.note.replace(/\.$/, '') + ')' : ''), s.total]); },
+      topTen: function (top) { var d = html('card', '<h4>The Oregon Top Ten</h4>'); var t = document.createElement('div'); renderTopTen(t, top); d.appendChild(t); },
+      getTopTen: function () { return journey.top.map(function (r) { return r.slice(); }); },
+      saveTopTen: function (top) { if (replaying()) return; journey.top = top; try { localStorage.setItem('oregon85.topten', JSON.stringify(top)); } catch (e) {} saveJourney(); },
+      getTombstones: function () { return journey.tombs.slice(); },
+      saveTombstone: function (t) { if (replaying()) return; var all = loadTombstones(); all.unshift(t); all = all.slice(0, 12); try { localStorage.setItem('oregon85.tombs', JSON.stringify(all)); } catch (e) {} }
+    };
+    var result = null;
+    try { result = await Oregon85.run(io, T); } catch (e) { line$('Something went wrong: ' + (e && e.message ? e.message : e), 'sys'); console.error(e); }
+    running = false; clearDock(); ending.hidden = false;
+    prompt.textContent = result === Oregon85.ARRIVED ? 'You made it to Oregon.' : result === Oregon85.DEAD ? 'The trail claimed your party.' : '';
+    scrollToEnd(true);
+  }
+  $('againBtn').addEventListener('click', function () { start(true); });
+  (function () {
+    var btn = $('newBtn'), timer = null, original = btn.textContent;
+    btn.addEventListener('click', function () {
+      if (btn.dataset.armed === '1') { clearTimeout(timer); btn.dataset.armed = ''; btn.textContent = original; closeDrawer(); pending = null; running = false; hunt = null; raft = null; tunes.stop(); start(true); return; }
+      btn.dataset.armed = '1'; btn.textContent = 'Tap again to start over';
+      timer = setTimeout(function () { btn.dataset.armed = ''; btn.textContent = original; }, 4000);
+    });
+  })();
+  if (window.visualViewport) {
+    var app = $('app'), fit = function () {
+      var vv = window.visualViewport;
+      if (Math.abs(window.innerHeight - vv.height) > 40) { app.style.top = vv.offsetTop + 'px'; app.style.height = vv.height + 'px'; app.style.bottom = 'auto'; }
+      else { app.style.top = ''; app.style.height = ''; app.style.bottom = ''; }
+      scrollToEnd(false);
+    };
+    window.visualViewport.addEventListener('resize', fit); window.visualViewport.addEventListener('scroll', fit);
+  }
+  var obs = new MutationObserver(function () { if (atEnd() || logInner.children.length < 4) scrollToEnd(false); });
+  obs.observe(logInner, { childList: true, subtree: true });
+
+  if (/debug/.test(location.search)) window.__o85 = { runHunt: runHunt, runRaft: runRaft, screen: screen, libs: libs, setStage: setStage, get journey() { return journey; }, newJourney: newJourney };
+  journey = loadJourney();
+  start(false);
+})();
+</script>
+</body>
+</html>
