@@ -583,13 +583,14 @@ POP.mac = (function () {
   // ---------------------------------------------------------------- the princess's room (the cut scenes)
   // The Apple's room picture, post, hourglass, sand, torches and stars have the Mac's shapes drawn at the same places:
   // the room (Chamber 1) on both pages, the rest through the cut's events
-  var inCut = false;
+  var inCut = false, lastCut = 1;
   function cutRoom(n) {
-    cutPrincessSet = n === 0 ? SET.princess1 : SET.princess2;
+    lastCut = n; cutPrincessSet = n === 0 ? SET.princess1 : SET.princess2;
     inCut = true; peels = [[], []]; zerolsts();
     for (var pg = 0; pg < 2; pg++) { cls(pg); drawAt(pages[pg], SET.chamber1, 1, 0, 0, false, 'mask', null); }
     band.kid = band.kidMax = band.opp = 0; band.msg = ''; band.timer = 0; band.dirty = true;
   }
+  function redrawRoom() { cutRoom(lastCut); if (S.GlassState) S.redrawglass = 2; }
   // the Mac's own places for the room's fixtures (its cut-scene code): the post, the hourglass and its sand, the torches
   function cutPost() { addfore(SET.chamber2, 2, 30, 2, 167); }
   function macGlass(a) { return a === 0 ? 1 : a === 1 ? 2 : a >= 8 ? 7 : Math.max(1, a - 1); }   // the Apple's nine states to the Mac's seven
@@ -693,7 +694,7 @@ POP.mac = (function () {
     if (mode === 'bw') for (var i = 0; i < n; i++, p += 4) { var v = page[i] ? 0 : 255; rgba[p] = v; rgba[p + 1] = v; rgba[p + 2] = v; rgba[p + 3] = 255; }
     else for (i = 0; i < n; i++, p += 4) { var c = palette[page[i]]; rgba[p] = c[0]; rgba[p + 1] = c[1]; rgba[p + 2] = c[2]; rgba[p + 3] = 255; }
   }
-  return { install: install, begin: begin, render: render, renderTitle: renderTitle, setGuardColor: setGuardColor, shape: shape, drawAt: drawAt, blit: blit, SET: SET,
+  return { install: install, begin: begin, render: render, renderTitle: renderTitle, redrawRoom: redrawRoom, setGuardColor: setGuardColor, shape: shape, drawAt: drawAt, blit: blit, SET: SET,
     mx: mx, my: my, setActive: setActive, isActive: function () { return active; }, size: function () { return { W: W, H: H, PLAYH: PLAYH, mode: mode }; },
     pages: function () { return pages; }, unmapped: unmapped, palette: function () { return palette; }, showMsg: showMsg, band: band };
 })();

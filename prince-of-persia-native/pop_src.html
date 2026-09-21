@@ -187,6 +187,7 @@
     if (macOn()) { MAC.begin(settings.gfx === 'macbw' ? 'bw' : 'color'); MAC.setActive(true); var z = MAC.size(); canvas.width = z.W; canvas.height = z.H; macImage = ctx.createImageData(z.W, z.H); }
     else { MAC.setActive(false); canvas.width = 560; canvas.height = 192; }
     if (started && T.mode() === 'game') S.redrawflg = 2;             // a whole redraw of both pages, as after the upside-down potion
+    if (started && T.mode() === 'cut' && macOn()) MAC.redrawRoom();    // the princess's room again on the new pages
     layout(); repaint();
   }
   function drawMac(page) { MAC.render(macImage.data, page === 1 ? 0 : 1); ctx.putImageData(macImage, 0, 0); }
