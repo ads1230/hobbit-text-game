@@ -10,7 +10,7 @@ tape (the bug-fixed release) built in: open it and play. Another tape image can 
 loaded from the menu and is then remembered by the browser. Nothing is uploaded
 anywhere; saved games stay in the browser's storage and can be exported as files.
 
-## Also here: two Oregon Trails
+## Also here: two Oregon Trails, and Prince of Persia
 
 The same treatment for MECC's *The Oregon Trail*, each a self-contained page that
 works on a phone and keeps the journey across reloads:
@@ -22,6 +22,14 @@ works on a phone and keeps the journey across reloads:
   (`oregon85.html`), ported program by program from its BASIC, with the hunting
   and rafting screens rebuilt from its machine code and the disks' own pictures,
   sprites and tunes.
+
+And an action game, emulated rather than ported:
+
+- [`prince-of-persia/`](prince-of-persia/) — Brøderbund's 1989 Apple II
+  *Prince of Persia* (`prince.html`), the real program from its three disk
+  sides running on a small Apple IIe emulator written for the page (a 65C02,
+  128K, the language card, a nibble-level Disk II — and no Apple ROM), with a
+  touch pad and button, automatic disk-side swapping and snapshots.
 
 ## How it works
 
