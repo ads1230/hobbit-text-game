@@ -30,6 +30,7 @@ POP.cut = (function () {
     ptorchstate[x] = MV.getflameframe(ptorchstate[x]);
     psetupflame(ptorchstate[x]);
     HR.lay();
+    if (events.burn) events.burn(ptorchx[x], ptorchoff[x], ptorchy[x], ptorchstate[x]);
   }
   function pflow() {
     if (psandcount & 0x80) return;
@@ -43,10 +44,12 @@ POP.cut = (function () {
     P.BOTCUT = u8(glassy - sandht[y]);
     P.XCO = flowx; P.OFFSET = 0; P.YCO = flowy; P.OPACITY = STA; setch6(flowimg[x]);
     HR.lay();
+    if (events.flow) events.flow(x, flowx, flowy, u8(glassy - sandht[y]));
   }
   function twinkle(x) {
     P.XCO = starx; P.YCO = stary[x]; P.OPACITY = EOR; setch6(stari[x]);
     HR.fastlay(); P.PAGE ^= 0x20; HR.fastlay(); P.PAGE ^= 0x20;
+    if (events.twinkle) events.twinkle(x, starx, stary[x]);
   }
   function pstars() {
     for (var x = 3; x >= 0; x--) {
@@ -61,8 +64,8 @@ POP.cut = (function () {
   }
   // the post and the hourglass are ordinary list entries: during a cut the stage-2 data (chtable6) sits
   // where bgtable1 lives, so their plain image numbers reach chtable6 through the background table
-  function drawpost() { G.addfore(postx, posty, postimg, ORA); }
-  function drawglass(x) { G.addback(glassx, glassy, glassimg[x], STA); }
+  function drawpost() { G.addfore(postx, posty, postimg, ORA); if (events.post) events.post(postx, posty); }
+  function drawglass(x) { G.addback(glassx, glassy, glassimg[x], STA); if (events.glass) events.glass(x, glassx, glassy); }
   function pmask() {
     var p = Char.Posn, x;
     if (p === 19) x = 0; else if (p === 1 || p === 18) x = 1; else return;
@@ -172,7 +175,7 @@ POP.cut = (function () {
 
   // ---------------------------------------------------------------- running a cut
   var run = null;                                                      // { steps, i, frames, song: {ticks, left, perTick}, done }
-  var events = { song: null };                                          // song(set, number, seconds): the page plays it
+  var events = { song: null };                                          // song(set, number, seconds): the page plays it; the room's fixtures for another renderer
   function start(n, done) {
     T = POP.top;
     initit();

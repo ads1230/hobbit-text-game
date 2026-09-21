@@ -238,13 +238,14 @@ POP.top = (function () {
   }
   function flipdisk() { S.purpleflag = 1; }
   // the princess's room: the stage-2 data (chtable6, over the background tables) and the room on both pages
-  function cutprincess() {
+  function cutprincess(n) {
     var im = POP.data.images, ch6 = S.BBundID === POPside2 ? im.ch6b : im.ch6a;
     G.tables.ch[5] = ch6; G.tables.bg1 = ch6; G.tables.bg2 = ch6;
     show(0, 'black');
     HR.mem.set(POP.data.proom, 0); HR.mem.copyWithin(0x2000, 0, 0x2000);
+    if (events.cutroom) events.cutroom(n);
   }
-  function startCut(n, cont) { cutprincess(); POP.cut.start(n, function () { runJumps(cont); }); setmode('cut'); }
+  function startCut(n, cont) { cutprincess(n); POP.cut.start(n, function () { runJumps(cont); }); setmode('cut'); }
   function runJumps(fn) {
     for (var guard = 0; guard < 16; guard++) {
       try { fn(); return; }

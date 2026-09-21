@@ -138,6 +138,7 @@ POP.state = (function () {
   var seqOrg = 0x3000, seq = null, framedef = null, FD = { Fdef: 0, altset1: 0, altset2: 0, swordtab: 0 };
   function loadData(data) {
     seq = data.seq; framedef = data.framedef; FD = data.FD;
+    for (var k in data.images) data.images[k].forEach(function (im, i) { im.tab = k; im.idx = i + 1; });   // (so a renderer can tell them apart)
   }
   function seqByte(addr) { return seq[addr - seqOrg]; }
   function jumpseq(n) { var x = (n - 1) * 2; Char.Seq = seq[x] | (seq[x + 1] << 8); }
@@ -157,8 +158,10 @@ POP.state = (function () {
     }
     S.framepoint = fp;
     S.Fimage = framedef[fp]; S.Fsword = framedef[fp + 1]; S.Fdx = framedef[fp + 2]; S.Fdy = framedef[fp + 3]; S.Fcheck = framedef[fp + 4];
+    if (hooks.frame) hooks.frame(p, id, fp);
   }
-  function swordframe(n) { var a = FD.swordtab + (n - 1) * 3; return [framedef[a], framedef[a + 1], framedef[a + 2]]; }
+  function swordframe(n) { var a = FD.swordtab + (n - 1) * 3; if (hooks.sword) hooks.sword(n); return [framedef[a], framedef[a + 1], framedef[a + 2]]; }
+  var hooks = { frame: null, sword: null };                            // another renderer (the Macintosh art) listens here
 
   // ---------------------------------------------------------------- blueprint access (CALCBLUE, RDBLOCK ...)
   function calcblue(scrn) {
@@ -399,7 +402,7 @@ POP.state = (function () {
     BlockTop: BlockTop, BlockBot: BlockBot, FloorY: FloorY, BlockAy: BlockAy,
     mkChar: mkChar, copyChar: copyChar, LoadKid: LoadKid, SaveKid: SaveKid, LoadShad: LoadShad, SaveShad: SaveShad, LoadKidwOp: LoadKidwOp, SaveKidwOp: SaveKidwOp,
     LoadShadwOp: LoadShadwOp, SaveShadwOp: SaveShadwOp,
-    loadData: loadData, jumpseq: jumpseq, opjumpseq: opjumpseq, getseq: getseq, seqByte: seqByte, GetFrameInfo: GetFrameInfo, swordframe: swordframe,
+    loadData: loadData, jumpseq: jumpseq, opjumpseq: opjumpseq, getseq: getseq, seqByte: seqByte, GetFrameInfo: GetFrameInfo, swordframe: swordframe, hooks: hooks,
     calcblue: calcblue, GETLEFT: GETLEFT, GETRIGHT: GETRIGHT, GETUP: GETUP, GETDOWN: GETDOWN, getscrns: getscrns, rdblock: rdblock, rdblock1: rdblock1, spec: spec, setspec: setspec, settype: settype,
     getunderft: getunderft, getinfront: getinfront, get2infront: get2infront, getbehind: getbehind, getabove: getabove, getaboveinf: getaboveinf, getabovebeh: getabovebeh,
     addcharx: addcharx, facedx: facedx, getbasex: getbasex, getblockx: getblockx, getblockxp: getblockxp, getblocky: getblocky, getblockyp: getblockyp, getblockej: getblockej,

@@ -19,6 +19,10 @@ POP.bg = (function () {
   function addfore() { G.addfore(XCO, YCO, IMAGE, OPACITY); }
   function maddfore() { OPACITY = MASK; addfore(); OPACITY = ORA; addfore(); }
   var initsettings = [ST.gmaxval, ST.gminval];
+  // hooks for another renderer (the Macintosh art): each drawing routine reports the block it is drawing; 'mute' keeps
+  // the routines a hooked routine calls itself from reporting again
+  var H = { on: false, mute: 0 };
+  function hk(name) { return H.on && !H.mute ? H[name] : null; }
 
   // ---------------------------------------------------------------- getobjid: objid and state of a block
   function getobjid1(y) {
@@ -174,6 +178,7 @@ POP.bg = (function () {
     }
   }
   function drawobjx(o) {
+    var h = hk('drawobjx'); if (h) h(o);
     S.FCharX = o.x; XCO = o.x; S.FCharY = o.y; YCO = o.y; IMAGE = o.img; S.FCharFace = o.face;
     S.FCharCU = o.cu; S.FCharCD = o.cd; S.FCharCL = o.cl; S.FCharCR = o.cr;
     var t = o.typ;
@@ -206,6 +211,7 @@ POP.bg = (function () {
 
   // ---------------------------------------------------------------- the sections
   function drawfrnt() {
+    var h = hk('drawfrnt'); if (h) h(ctx());
     if (S.PRECED === OBJ.gate) DrawGateBF();
     var x = objid;
     if (x === OBJ.slicer) return drawslicerf();
@@ -226,20 +232,23 @@ POP.bg = (function () {
     drawgatebf();
   }
   function drawmb() {
-    var p = S.PRECED;
-    if (p === OBJ.gate) return drawgateb();
-    if (p === OBJ.spikes) return drawspikeb();
-    if (p === OBJ.loose) return drawlooseb();
-    if (p === OBJ.torch) return drawtorchb();
-    if (p === OBJ.exit) return drawexitb();
+    var h = hk('drawmb'); if (h) h(ctx());
+    var p = S.PRECED; H.mute++;
+    if (p === OBJ.gate) drawgateb();
+    else if (p === OBJ.spikes) drawspikeb();
+    else if (p === OBJ.loose) drawlooseb();
+    else if (p === OBJ.torch) drawtorchb();
+    else if (p === OBJ.exit) drawexitb();
+    H.mute--;
   }
   function drawmc() {
+    var h = hk('drawmc'); if (h) h(ctx());
     if (!(objid === OBJ.space || objid === OBJ.panelwof || objid === OBJ.pillartop)) return;
     if (S.BELOW[colno] !== OBJ.gate) return;
     drawgatec();
   }
   function checkc() { return objid === 0 || objid === OBJ.pillartop || objid === OBJ.panelwof || objid >= OBJ.archtop1; }
-  function drawc() { if (!checkc()) return; dodrawc(); domaskb(); }
+  function drawc() { var h = hk('drawc'); if (h) h(ctx()); if (!checkc()) return; dodrawc(); domaskb(); }
   function dodrawc() {
     var x = S.BELOW[colno], img;
     if (x === OBJ.block) { var y = S.SBELOW[colno]; if (y >= BG.numblox) y = 0; img = BG.blockc[y]; if (!img) return; }
@@ -254,6 +263,7 @@ POP.bg = (function () {
     IMAGE = img; YCO = Dy; OPACITY = AND; add();
   }
   function drawb() {
+    var h = hk('drawb'); if (h) h(ctx());
     if (objid === OBJ.block) return;
     var x = S.PRECED, img, y;
     if (x === OBJ.space) { y = S.spreced; if (y >= BG.numbpans + 1) return; img = BG.spaceb[y]; if (!img) return; IMAGE = img; return bcont(BG.spaceby[y]); }
@@ -272,8 +282,9 @@ POP.bg = (function () {
   }
   function bcont1(img, x) { IMAGE = img; bcont(BG.pieceby[x]); }
   function bcont(dy) { YCO = u8(Ay + dy); XCO = blockxco; OPACITY = ORA; add(); }
-  function redrawd() { if (!drawd()) return; addfore(); }
-  function drawd() {                                          // returns true when something was drawn (Z clear)
+  function redrawd() { if (!drawd(true)) return; addfore(); }
+  function drawd(fore) {                                      // returns true when something was drawn (Z clear)
+    var h = hk('drawd'); if (h) h(ctx(), !!fore);
     OPACITY = STA;
     var x = objid, img;
     if (x === OBJ.block) { var y = state; if (y >= BG.numblox) y = 0; img = BG.blockd[y]; if (!img) return false; }
@@ -281,6 +292,7 @@ POP.bg = (function () {
     IMAGE = img; XCO = blockxco; YCO = Dy; add(); return true;
   }
   function drawa() {
+    var h = hk('drawa'); if (h) h(ctx());
     var p = S.PRECED;
     if (p === OBJ.archtop1) { if (objid === OBJ.panelwof) return adda1(BG.archpanel, objid); return adda(); }
     if (p === OBJ.panelwif || p === OBJ.panelwof || p === OBJ.pillartop || p === OBJ.block) addamask();
@@ -294,15 +306,20 @@ POP.bg = (function () {
   function adda() { var img = getpiecea(objid); if (!img) return; adda1(img, objid); }
   function adda1(img, x) { IMAGE = img; XCO = blockxco; YCO = u8(Ay + BG.pieceay[x]); OPACITY = ORA; add(); }
   function drawma() {
+    var h = hk('drawma'); if (h) h(ctx());
     if (objid === OBJ.spikes) return drawspikea();
     if (objid === OBJ.slicer) return drawslicera();
     if (objid === OBJ.flask) return drawflaska();
     if (objid === OBJ.sword) return drawsworda();
   }
-  function drawmd() { if (objid === OBJ.loose) drawloosed(); }
-  function drawfloor() { if (S.PRECED) return; drawflr(); }
+  function drawmd() { var h = hk('drawmd'); if (h) h(ctx()); if (objid === OBJ.loose) drawloosed(); }
+  function drawfloor() { var h = hk('drawfloor'); if (h) h(ctx()); H.mute++; if (!S.PRECED) drawflr(); H.mute--; }
   function drawflr() { addamask(); adda(); drawma(); drawd(); }
   function drawhalf() {
+    var h = hk('drawhalf'); if (h) h(ctx());
+    H.mute++; drawhalf1(); H.mute--;
+  }
+  function drawhalf1() {
     if (S.PRECED) return;
     var x = objid, img;
     if (x === OBJ.floor || x === OBJ.torch || x === OBJ.dpressplate || x === OBJ.exit) { halfsub(); img = BG.CUpiece; }
@@ -318,8 +335,9 @@ POP.bg = (function () {
     OPACITY = AND; add();
   }
   function wipesq(y) { wipe(S.whitebuf[y]); }
-  function wipe(height) { G.addwipe(blockxco, Dy, height, 4, 0x80); }
+  function wipe(height) { var h = hk('wipe'); if (h) h(ctx(), height); G.addwipe(blockxco, Dy, height, 4, 0x80); }
   function wiped() {
+    var h = hk('wiped'); if (h) h(ctx());
     if (objid === OBJ.pillartop || objid === OBJ.panelwif || objid === OBJ.panelwof || objid === OBJ.block) return;
     wipe(3);
   }
@@ -465,6 +483,7 @@ POP.bg = (function () {
   var bullet = 0x88, blank = 0x8c, bline = [0x89, 0x8a, 0x8b];
   function updatemeters() { if (S.redkidmeter) DrawKidMeter(); if (S.redoppmeter) DrawOppMeter(); }
   function DrawKidMeter() {
+    var h = hk('kidmeter'); if (h) h();
     if (S.inbuilder) return;
     var yco = 191, op = STA, x = 0;
     for (;;) {
@@ -480,6 +499,7 @@ POP.bg = (function () {
     while (x < S.MaxKidStr) { G.addmsg(KidStrX[x], KidStrOFF[x], yco, blank, AND); x++; }
   }
   function DrawOppMeter() {
+    var h = hk('oppmeter'); if (h) h();
     if (S.inbuilder) return;
     if (!S.OppStrength) return;
     var id = ST.Shad.ID;
@@ -508,6 +528,7 @@ POP.bg = (function () {
   function superimage(d) { setupimage(d); superim1(); }
   function getlevelno() { var x = S.level; if (x >= 13) x = 12; return x; }
   function printlevel() {
+    var h = hk('msg'); if (h) h('level');
     superimage(msgbox);
     setupimage(levelmsg);
     var x = getlevelno(); if (x >= 10) M.OFFSET = 0;
@@ -518,6 +539,7 @@ POP.bg = (function () {
     G.addmsg(M.XCO, M.OFFSET, M.YCO, digit2[x], ORA);
   }
   function timeleftmsg() {
+    var h = hk('msg'); if (h) h('time');
     setupimage(timeleft);
     var ok = S.MinLeft >= 2 || ST.Kid.Action === 3 || ST.Kid.Action === 4 || ST.Kid.BlockY !== 1;
     if (!ok) M.YCO = lowmy;
@@ -533,7 +555,7 @@ POP.bg = (function () {
     var y = M.YCO; setupimage(seconds); M.YCO = y;
     G.addmsg(M.XCO, M.OFFSET, M.YCO, M.IMAGE, STA);
   }
-  function continuemsg() { setupimage(contbox); if (!(ST.Kid.BlockX & 1)) M.YCO = lowconty; superim1(); }
+  function continuemsg() { var h = hk('msg'); if (h) h('continue'); setupimage(contbox); if (!(ST.Kid.BlockX & 1)) M.YCO = lowconty; superim1(); }
   function flipdiskmsg() { superimage(flipbox); }
 
   // comix (impact star)
@@ -574,13 +596,23 @@ POP.bg = (function () {
     o.typ = (mobtype | 0x80) & 0xFF; o.x = mobx; o.off = 0; o.y = moby; o.img = frame; o.cu = 0; o.cl = 0; o.cr = 40;
     setobjindx(o);
   }
+  // a neighbouring block of the screen being drawn, for the hooks: {o, s} (the screen to the left when col < 0)
+  function objAt(row, col) {
+    if (col < 0) return { o: S.PREV[row], s: S.sprev[row] };
+    if (col > 9) return { o: OBJ.block, s: 0 };
+    var save = state, o = getobjid(row * 10 + col), st = state; state = save;
+    return { o: o, s: st };
+  }
   function markmeters() { markkidmeter(); markoppmeter(); }
   function mark1(y) { S.height = 4; ST.markwipe({ y: y, cs: false }, 2); ST.markred({ y: y, cs: false }, 2); }
   function markkidmeter() { mark1(20); mark1(21); mark1(22); }
   function markoppmeter() { mark1(28); mark1(29); }
 
+  function ctx() { return { o: objid, p: S.PRECED, s: state, sp: S.spreced, col: colno, row: rowno, Ay: Ay, Dy: Dy, bx: blockxco, yindex: yindex, below: S.BELOW[colno], sbelow: S.SBELOW[colno] }; }
   return { SURE: SURE, FAST: FAST, getobjid: getobjid, getobjid1: getobjid1, getinitobj: getinitobj, drawobjs: drawobjs, addcharobj: addcharobj, setobjindx: setobjindx, addmobobj: addmobobj,
     setupcomix: setupcomix, updatemeters: updatemeters, DrawKidMeter: DrawKidMeter, DrawOppMeter: DrawOppMeter, printlevel: printlevel, timeleftmsg: timeleftmsg, continuemsg: continuemsg,
     flipdiskmsg: flipdiskmsg, markmeters: markmeters, markkidmeter: markkidmeter, markoppmeter: markoppmeter, torchflame: torchflame, ptorchflame: ptorchflame, setupflame: setupflame,
-    params: function () { return { XCO: XCO, YCO: YCO, IMAGE: IMAGE, OPACITY: OPACITY }; }, setparams: function (x, y) { XCO = x; YCO = y; } };
+    params: function () { return { XCO: XCO, YCO: YCO, IMAGE: IMAGE, OPACITY: OPACITY }; }, setparams: function (x, y) { XCO = x; YCO = y; },
+    // the block being drawn, for the Macintosh renderer (which places pieces by their role in the block)
+    ctx: ctx, objAt: objAt, hooks: H };
 })();

@@ -35,7 +35,9 @@ And an action game, first emulated and then ported:
   6502 source: its sequence tables, collision rules, guard programs, movers
   and level blueprints as native code, drawn with the same hi-res routines,
   and checked frame by frame against the emulator above. The pictures, tunes
-  and sound effects are captured from the game running there.
+  and sound effects are captured from the game running there. It can also
+  draw itself with the 1992 Macintosh version's art, black-and-white or
+  256-colour, placed by that version's own tables and rules (a menu setting).
 
 ## How it works
 

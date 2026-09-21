@@ -1,12 +1,12 @@
 // load.js — loads the engine's files into one shared scope, as the page does, and returns POP
 const fs = require('fs'), path = require('path'), vm = require('vm');
-const FILES = ['pop_hires.js', 'pop_grafix.js', 'pop_state.js', 'pop_bg.js', 'pop_char.js', 'pop_mover.js', 'pop_auto.js', 'pop_sound.js', 'pop_cut.js', 'pop_top.js'];
+const FILES = ['pop_hires.js', 'pop_grafix.js', 'pop_state.js', 'pop_bg.js', 'pop_char.js', 'pop_mover.js', 'pop_auto.js', 'pop_sound.js', 'pop_cut.js', 'pop_top.js', 'pop_mac.js'];
 module.exports = function load(extra) {
   const dir = path.join(__dirname, '..', 'js');
   let src = 'var POP = {};\n';
   for (const f of FILES) { const p = path.join(dir, f); if (fs.existsSync(p)) src += fs.readFileSync(p, 'utf8').replace(/^var POP = POP \|\| \{\};/m, '') + '\n'; }
   src += 'POP;';
-  const sandbox = { console: console, Math: Math }; vm.createContext(sandbox);
+  const sandbox = { console: console, Math: Math, atob: s => Buffer.from(s, 'base64').toString('binary') }; vm.createContext(sandbox);
   const POP = vm.runInContext(src, sandbox, { filename: 'pop.js' });
   // data
   const data = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'assets', 'pop_data.json'), 'utf8'));
@@ -23,5 +23,7 @@ module.exports = function load(extra) {
     for (const set of ['game', 'title']) for (const k of Object.keys(au[set])) POP.audio.seconds[set][k] = au[set][k].cycles / au.cpuHz;
   }
   POP.state.loadData(POP.data);
+  const macPath = path.join(__dirname, '..', 'assets', 'pop_mac.json');
+  if (fs.existsSync(macPath) && POP.mac) POP.macData = JSON.parse(fs.readFileSync(macPath, 'utf8'));
   return POP;
 };

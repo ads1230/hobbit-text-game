@@ -120,7 +120,7 @@
 <div id="scrim"></div>
 <aside id="drawer" aria-label="Menu">
   <h2>Prince of Persia<span style="flex:1"></span><button class="iconbtn" id="btnClose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h2>
-  <div class="sub">Apple II · 1989 · native port</div>
+  <div class="sub">Apple II · 1989 · native port · Macintosh art</div>
   <p class="about" style="margin:0 0 6px">The game is paused while this menu is open.</p>
 
   <h3>Game</h3>
@@ -136,7 +136,8 @@
   <h3>Settings</h3>
   <div class="setting"><div class="lbl">Sound effects</div><div class="seg" id="segSound"><button data-v="on">On</button><button data-v="off">Off</button></div></div>
   <div class="setting"><div class="lbl">Music<small>The game waits while a tune plays, as the Apple did</small></div><div class="seg" id="segMusic"><button data-v="on">On</button><button data-v="off">Off</button></div></div>
-  <div class="setting"><div class="lbl">Display<small>Colour as on an NTSC monitor, or a green monochrome</small></div><div class="seg" id="segMono"><button data-v="colour">Colour</button><button data-v="mono">Mono</button></div></div>
+  <div class="setting"><div class="lbl">Graphics<small>The Apple's hi-res art, or the Macintosh version's (Brøderbund, 1992) drawn by the same game</small></div><div class="seg" id="segGfx"><button data-v="apple">Apple II</button><button data-v="macbw">Mac B&amp;W</button><button data-v="maccolor">Mac colour</button></div></div>
+  <div class="setting" id="setMono"><div class="lbl">Apple display<small>Colour as on an NTSC monitor, or a green monochrome</small></div><div class="seg" id="segMono"><button data-v="colour">Colour</button><button data-v="mono">Mono</button></div></div>
   <div class="setting"><div class="lbl">Touch controls</div><div class="seg" id="segPad"><button data-v="on">Shown</button><button data-v="off">Hidden</button></div></div>
 
   <h3>Keys</h3>
@@ -150,6 +151,7 @@
 
   <h3>About</h3>
   <p class="about">Jordan Mechner's <i>Prince of Persia</i> (Brøderbund, 1989), rebuilt in JavaScript from his published Apple II source: the same sequence tables, frame definitions, collision rules, guard programs, level blueprints and image tables, drawn with the same hi-res routines. Every frame has been checked byte for byte against the game running on an Apple IIe emulator. The music and sounds are recordings of the Apple's speaker.</p>
+  <p class="about">The Macintosh graphics are the shapes of the 1992 Macintosh version (Brøderbund; programmed by Presage Software), drawn by this same Apple II game through the Mac version's own piece tables and placement rules, in its black-and-white (512 × 334) or 256-colour (640 × 400) art, with its title pages, its princess's room and its bottom band of meters and messages in its own typeface.</p>
 </aside>
 
 <script>/*__JS__*/</script>
@@ -157,12 +159,12 @@
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
-  var DATA = /*__DATA__*/null, PICS = /*__PICS__*/null, AUDIO = /*__AUDIO__*/null;
+  var DATA = /*__DATA__*/null, PICS = /*__PICS__*/null, AUDIO = /*__AUDIO__*/null, MACDATA = /*__MAC__*/null;
   var CPU_HZ = 1020484;
   function b64(s) { var bin = atob(s), out = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i); return out; }
 
   // ---------------------------------------------------------------- settings
-  var settings = { sound: 'on', music: 'on', mono: 'colour', pad: 'on' };
+  var settings = { sound: 'on', music: 'on', mono: 'colour', pad: 'on', gfx: 'apple' };
   try { var s0 = JSON.parse(localStorage.getItem('popn.settings') || '{}'); Object.keys(s0).forEach(function (k) { settings[k] = s0[k]; }); } catch (e) { }
   function saveSettings() { try { localStorage.setItem('popn.settings', JSON.stringify(settings)); } catch (e) { } }
 
@@ -173,10 +175,22 @@
   POP.audio = { ticks: AUDIO.ticks, seconds: {} };
   ['game', 'title', 'cut', 'epilog'].forEach(function (set) { POP.audio.seconds[set] = {}; Object.keys(AUDIO[set] || {}).forEach(function (k) { POP.audio.seconds[set][k] = AUDIO[set][k].cycles / AUDIO.cpuHz; }); });
   POP.state.loadData(POP.data);
+  var MAC = POP.mac; MAC.install(MACDATA);
   var ST = POP.state, S = ST.S, T = POP.top, HR = POP.hires;
 
   // ---------------------------------------------------------------- the screen: hi-res pages and double hi-res pictures at 560x192
   var canvas = $('screen'), ctx = canvas.getContext('2d'), image = ctx.createImageData(560, 192), px = image.data;
+  var macImage = null;                                                   // the Mac page, when the Macintosh art is on
+  function macOn() { return settings.gfx !== 'apple'; }
+  function screenSize() { if (!macOn()) return { w: 560, h: 192 }; var z = MAC.size(); return { w: z.W, h: z.H }; }
+  function setupScreen() {
+    if (macOn()) { MAC.begin(settings.gfx === 'macbw' ? 'bw' : 'color'); MAC.setActive(true); var z = MAC.size(); canvas.width = z.W; canvas.height = z.H; macImage = ctx.createImageData(z.W, z.H); }
+    else { MAC.setActive(false); canvas.width = 560; canvas.height = 192; }
+    if (started && T.mode() === 'game') S.redrawflg = 2;             // a whole redraw of both pages, as after the upside-down potion
+    layout(); repaint();
+  }
+  function drawMac(page) { MAC.render(macImage.data, page === 1 ? 0 : 1); ctx.putImageData(macImage, 0, 0); }
+  function drawMacTitle(name) { if (MAC.renderTitle(macImage.data, name)) ctx.putImageData(macImage, 0, 0); else fill(0, 0, 0); }
   var HI = { white: [255, 255, 255], violet: [221, 68, 221], green: [40, 200, 60], blue: [40, 150, 240], orange: [240, 120, 40] };
   var MONO = [96, 255, 128];
   var bits = new Uint8Array(282), hb = new Uint8Array(282), rowbuf = new Uint8Array(40 * 192);
@@ -215,10 +229,15 @@
     }
     ctx.putImageData(image, 0, 0);
   }
-  function fill(r, g, b) { ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')'; ctx.fillRect(0, 0, 560, 192); }
+  function fill(r, g, b) { ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')'; ctx.fillRect(0, 0, canvas.width, canvas.height); }
   var LORES = [[0, 0, 0], [227, 30, 96], [96, 78, 189], [255, 68, 253], [0, 163, 96], [156, 156, 156], [20, 207, 253], [208, 195, 255], [96, 114, 3], [255, 106, 60], [156, 156, 156], [255, 160, 208], [20, 245, 60], [208, 221, 141], [114, 255, 208], [255, 255, 255]];
   var shown = { page: 1, kind: 'flip' };
-  function repaint() { if (shown.pic) drawDHGR(shown.pic); else if (shown.kind === 'flip') drawHires(shown.page); else if (shown.kind === 'flashon') { var c = LORES[shown.color & 15]; fill(c[0], c[1], c[2]); } else fill(0, 0, 0); }
+  function repaint() {
+    if (shown.pic) { if (macOn()) drawMacTitle(shown.picName); else drawDHGR(shown.pic); }
+    else if (shown.kind === 'flip') { if (macOn()) drawMac(shown.page); else drawHires(shown.page); }
+    else if (shown.kind === 'flashon') { var c = LORES[shown.color & 15]; fill(c[0], c[1], c[2]); }
+    else fill(0, 0, 0);
+  }
   T.events.show = function (page, kind) {
     shown.pic = null;
     if (kind === 'flip') { shown.page = page; shown.kind = 'flip'; }
@@ -313,7 +332,9 @@
     attract.steps = [
       pic('splash', 1650), pic('presents', 0), songStep(1, 300), pic('splash', 1350), pic('byline', 0), songStep(2, 300), pic('splash', 1750),
       pic('title', 0), songStep(3, 1800), pic('prolog', 0), songStep(4, 0), { black: 2000 }, { cut: 0 }, { black: 2000 },
-      pic('sumup', 0), songStep(5, 850), pic('splash', 1400), pic('title', 5100), { demo: true }];
+      pic('sumup', 0), songStep(5, 850), pic('splash', 1400), pic('title', 5100)];
+    if (macOn()) attract.steps.push(pic('credits', 6000));            // the Mac's credits page, from its title set
+    attract.steps.push({ demo: true });
     attract.i = 0; attract.until = 0; attract.waiting = null;
   };
   attract.tick = function () {
@@ -321,7 +342,7 @@
     if (attract.waiting) { if (now < attract.until) return; attract.waiting = null; attract.i++; }
     if (attract.i >= attract.steps.length) { attract.i = 0; }
     var st = attract.steps[attract.i];
-    if (st.pic) { shown.pic = PICS[st.pic]; shown.kind = 'pic'; repaint(); attract.waiting = st; attract.until = now + st.ms; if (!st.ms) { attract.waiting = null; attract.i++; } return; }
+    if (st.pic) { shown.pic = PICS[st.pic] || PICS.splash; shown.picName = st.pic; shown.kind = 'pic'; repaint(); attract.waiting = st; attract.until = now + st.ms; if (!st.ms) { attract.waiting = null; attract.i++; } return; }
     if (st.song) { var secs = playSong('title', st.song); if (!secs) secs = 1.5; attract.waiting = st; attract.until = now + secs * 1000 + st.after; return; }
     if (st.black) { shown.pic = null; shown.kind = 'black'; repaint(); attract.waiting = st; attract.until = now + st.black; return; }
     if (st.cut !== undefined) { attract.i++; attract.fromCut = true; T.startCut(0, function () { T.attractmode(); }); return; }
@@ -346,7 +367,7 @@
     function next() {
       if (i >= steps.length) { T.setmode('title'); return; }
       var st = steps[i++];
-      if (st.pic) { shown.pic = PICS[st.pic]; shown.kind = 'pic'; repaint(); setTimeout(next, st.ms); }
+      if (st.pic) { shown.pic = PICS[st.pic]; shown.picName = st.pic; shown.kind = 'pic'; repaint(); setTimeout(next, st.ms); }
       else if (st.song) { var secs = playSong(st.set, st.song) || 3; setTimeout(next, secs * 1000 + st.after); }
       else { shown.pic = null; shown.kind = 'black'; repaint(); setTimeout(next, st.ms); }
     }
@@ -420,16 +441,17 @@
   var app = $('app'), stage = $('stage');
   function layout() {
     var W = window.innerWidth, H = window.innerHeight, portrait = H > W * 0.9, pad = settings.pad === 'on';
+    var sz = screenSize(), AR = macOn() ? sz.w / sz.h : 4 / 3;
     app.classList.toggle('portrait', portrait); app.classList.toggle('landscape', !portrait); app.classList.toggle('nopad', !pad);
     var sw, sh;
     if (portrait) {
-      sw = W; sh = sw * 3 / 4; if (pad && H - sh < 150) { sh = H - 150; sw = sh * 4 / 3; }
-      if (!pad && sh > H) { sh = H; sw = sh * 4 / 3; }
+      sw = W; sh = sw / AR; if (pad && H - sh < 150) { sh = H - 150; sw = sh * AR; }
+      if (!pad && sh > H) { sh = H; sw = sh * AR; }
       var free = H - sh - 30, size = Math.max(110, Math.min(190, free * 0.9, W * 0.42));
       app.style.setProperty('--pad', size + 'px'); app.style.setProperty('--btn', Math.round(size * 0.72) + 'px');
     } else {
       var side = pad ? Math.max(120, Math.min(180, W * 0.2)) : 0;
-      sh = H; sw = sh * 4 / 3; if (sw > W - 2 * side - 16) { sw = W - 2 * side - 16; sh = sw * 3 / 4; }
+      sh = H; sw = sh * AR; if (sw > W - 2 * side - 16) { sw = W - 2 * side - 16; sh = sw / AR; }
       app.style.setProperty('--pad', Math.round(Math.min(side - 10, H * 0.55)) + 'px'); app.style.setProperty('--btn', Math.round(Math.min(side - 30, H * 0.4)) + 'px');
     }
     stage.style.width = Math.floor(sw) + 'px'; stage.style.height = Math.floor(sh) + 'px';
@@ -463,6 +485,8 @@
   function applySettings() { S.soundon = settings.sound === 'on' ? 1 : 0; S.musicon = settings.music === 'on' ? 1 : 0; }
   function readSettings() { settings.sound = S.soundon ? 'on' : 'off'; settings.music = S.musicon ? 'on' : 'off'; segPaint.forEach(function (p) { p(); }); }
   seg('segSound', 'sound', applySettings); seg('segMusic', 'music', applySettings); seg('segMono', 'mono', repaint); seg('segPad', 'pad', layout);
+  seg('segGfx', 'gfx', function () { setupScreen(); $('setMono').style.display = macOn() ? 'none' : ''; });
+  $('setMono').style.display = macOn() ? 'none' : '';
 
   // ---------------------------------------------------------------- saved games (the Apple wrote them to the disk; here they stay in the browser)
   function saveInfo() { try { var s = JSON.parse(localStorage.getItem('popn.save') || 'null'); return s ? 'Level ' + s.level + ', saved ' + new Date(s.when).toLocaleString() : ''; } catch (e) { return ''; } }
@@ -471,14 +495,14 @@
 
   // ---------------------------------------------------------------- the front door
   var started = false, overlay = $('overlay');
-  T.INITSYSTEM(); applySettings();
+  T.INITSYSTEM(); applySettings(); setupScreen();
   if (saveInfo()) { $('btnContinue').hidden = false; $('continueInfo').textContent = saveInfo(); }
   $('btnStart').addEventListener('click', function () { wake(); overlay.style.display = 'none'; started = true; T.setmode('title'); start(); toast('Tap the screen to skip ahead; the menu pauses'); });
   $('btnContinue').addEventListener('click', function () { wake(); overlay.style.display = 'none'; started = true; if (!loadSave()) { T.setmode('title'); } start(); });
   document.addEventListener('visibilitychange', function () { if (document.hidden) { if (started && running) { stop(); if (audio.ctx) audio.ctx.suspend(); } } else if (started && !drawer.classList.contains('open') && overlay.style.display === 'none') { if (audio.ctx) audio.ctx.resume(); start(); } });
   fill(0, 0, 0);
 
-  window.__pop = { T: T, S: S, ST: ST, HR: HR, settings: settings, pressKey: pressKey, releaseKey: releaseKey, tapKey: tapKey, setButton: setButton, startAt: startAt, shown: shown, attract: attract };
+  window.__pop = { T: T, S: S, ST: ST, HR: HR, MAC: MAC, settings: settings, pressKey: pressKey, releaseKey: releaseKey, tapKey: tapKey, setButton: setButton, startAt: startAt, shown: shown, attract: attract, setupScreen: setupScreen };
 })();
 </script>
 </body>

@@ -9,6 +9,13 @@ spikes, slicers, loose floors), the level blueprints — runs as JavaScript, and
 the screen is drawn with the same hi-res routines, byte for byte, into two
 Apple hi-res pages that the page renders with an NTSC monitor's colour rules.
 
+The same game can also be drawn with the art of the 1992 Macintosh version
+(*Graphics* in the menu): its black-and-white shapes at 512 × 334 or its
+256-colour ones at 640 × 400, placed by the Mac version's own piece tables and
+drawing rules, with its title pages, its princess's room, and its band of
+strength meters and messages in its own typeface. See *The Macintosh art*
+below.
+
 Every frame has been checked against the real program running on the Apple IIe
 emulator in [`../prince-of-persia/`](../prince-of-persia/): the same inputs
 into both, and the two hi-res pages and the game's variables compared after
@@ -87,6 +94,42 @@ of the princess's room are captured there, because they run slower than in the
 game — the room is redrawn between the notes, and the page keeps that pace.
 The page turns each recording into a square wave.
 
+**The Macintosh art.** `js/pop_mac.js` is a second renderer that runs
+alongside the Apple's. The Macintosh version (Brøderbund, 1992; programmed by
+Presage Software) is a translation of the same 6502 program to C, with the same
+background routines — a block is drawn as its A, B, C, D and front pieces, the
+gate as a bottom and bars, the loose floor and the spikes from their own
+tables — but with its own piece tables, its own shapes and its own placement
+(x in a 320-wide space, 8 per Apple byte and 8/7 of an Apple pixel for the
+characters; the 512-wide modes stretch both axes through two scale tables, the
+640-wide one doubles them). Those routines were read from the application's
+68000 code and written again in JavaScript: the Apple's background routines
+report each block they draw (hooks in `pop_bg.js`), the Mac routines decide
+which of the Mac's shapes stand for it and where, and DRAWALL then draws the
+Mac's lists — wipes, background, characters, the palace's coloured brick
+bands, foreground — onto a Mac-sized page with the Mac's own peel-and-restore
+of what the characters cover. The characters use the Mac's frame and sword
+tables (which Mac shape each frame is), the guards the level's shape set
+(guard, skeleton, fat guard, shadow, vizier) and the screen's guard palette,
+the shadow the Mac's recolouring of the prince's thirteen colours. The
+princess's room, the title pages and the credits are the Mac's, the band under
+the play area shows the meters and the messages ("Level 1", "59 minutes
+left", "Press any key to continue") the way the Mac wrote them, in its Persian
+typeface from the application's font resource.
+
+`assets/pop_mac.json` is extracted by `tools/mac.py` from a disk image of the
+Macintosh version (an HFS volume read with `machfs`): the shape files
+`Persia(BW)` and `Persia(COLOR)` as the game kept them — each set LZSS-packed,
+with the resource fork's shape directories — and, from the application's
+resources and initialised data, the palette and the eight guard palettes, the
+frame, sword and block-piece tables, the animation tables, the two scale
+tables, the guard colour of every screen, and the font. The shapes are
+unpacked and decoded in the page (the colour ones are run-length coded, the
+black-and-white ones AND/OR word pairs). `tools/macshot.js` renders any
+screen of any level to a PNG headlessly, `tools/macfuzz.js` plays every
+level at random with the renderer on, and `tools/pagetest_mac.js` drives the
+built page through both Mac modes.
+
 **Time.** The game's logic is per frame, and the Apple's frame took as long as
 the drawing did. The page keeps that: a frame lasts a base of 26.5 ms plus the
 bytes each primitive drew at a cost per byte, fitted by `tools/frametime.js`
@@ -142,4 +185,9 @@ point `POP_SRC` at its `01 POP Source` folder, and run `python3 tools/assets.py`
   design are theirs. The 6502 source was published by Jordan Mechner for study,
   which is not a grant of rights in the game, and this port is offered in the
   same spirit.
+- The Macintosh graphics are © Brøderbund Software, 1992 (Macintosh
+  programming by Scott Shumway of Presage Software; art direction Leila Joslyn;
+  graphics Marcela Evans, Gail Rathbun and Arsys Software). They are used here
+  only as the game's own art, taken from its shape files, and remain their
+  owners'.
 - The JavaScript, the page and the tools are released under the MIT licence.
