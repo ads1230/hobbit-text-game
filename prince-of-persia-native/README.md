@@ -45,7 +45,7 @@ With a keyboard:
 | Key | Does |
 | --- | --- |
 | Arrows, or `J` `L` `I` `K` | left, right, up (jump), down (crouch) |
-| `U`, `O` | jump up-left, up-right |
+| `U`, `O`, or up held with left or right | jump up-left, up-right |
 | `Shift`, `Alt` or `Z` | the Apple button (grab, careful step, fight) |
 | `Esc` | pause (Esc again steps one frame; any other key resumes) |
 | `Space` | show the time left |
@@ -55,7 +55,10 @@ With a keyboard:
 | `Ctrl-G` | save the game (from level 3); `Ctrl-L` at the title continues it |
 
 These are the game's own keys, read by its own key routine (`SPECIALK.S`), so
-`SKIP` typed on level 1-3 still does what it did.
+`SKIP` typed on level 1-3 still does what it did. Two departures from the
+Apple, which read one key at a time and wanted its button: up held together
+with left or right is the diagonal jump, and after a death any key continues
+the game, as the Macintosh version allowed, not only the button.
 
 ## How it works
 

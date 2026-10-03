@@ -142,7 +142,7 @@
 
   <h3>Keys</h3>
   <div class="keys">
-    <b>Arrows</b> or <b>J L I K</b> move · <b>U O</b> jump diagonally<br>
+    <b>Arrows</b> or <b>J L I K</b> move · <b>U O</b> (or up with left or right) jump diagonally<br>
     <b>Shift</b>, <b>Alt</b> or <b>Z</b> is the button (grab, careful step)<br>
     <b>Esc</b> pauses (Esc again steps a frame) · <b>Space</b> shows the time left<br>
     <b>Ctrl-A</b> restart level · <b>Ctrl-R</b> title · <b>Ctrl-S</b> sound · <b>Ctrl-N</b> music<br>
@@ -3767,6 +3767,7 @@ POP.top = (function () {
   function LoadDesel() { S.clrF = S.clrDESEL[0]; S.clrB = S.clrDESEL[1]; S.clrU = S.clrDESEL[2]; S.clrD = S.clrDESEL[3]; S.clrbtn = S.clrDESEL[4]; }
   function initinput() { for (var i = 0; i < 5; i++) { S.clrDESEL[i] = 0; S.clrSEL[i] = 0; } }
   function clearjoy() { LoadSelect(); S.clrF = 0; S.clrB = 0; S.clrU = 0; S.clrD = 0; SaveSelect(); }
+  function anykey() { var k = S.keypress; return (k & 0x80) !== 0 && k !== 0x9B && k !== 0x93 && k !== 0x8E; }   // not ESC, ctrl-S, ctrl-N
   function demokeys() {
     if (S.level !== 0) return 0;
     if ((S.BTN0 | S.BTN1) & 0x80) return 0xFF;
@@ -4025,7 +4026,7 @@ POP.top = (function () {
     if ((S.MinLeft | S.SecLeft) === 0) YouLose();
     if (!(S.message === ContMsg && S.msgtimer !== 0)) { S.message = ContMsg; S.msgtimer = 255; }
     if (S.msgtimer === 1) jump(GOATTRACT);
-    if (!((S.BTN0 | S.BTN1) & 0x80)) return;
+    if (!((S.BTN0 | S.BTN1) & 0x80) && !anykey()) return;             // the Apple wanted the button; a key does as well, as on the Mac
     jump(RESTART);
   }
   function deathsong() {
@@ -5426,17 +5427,25 @@ POP.mac = (function () {
 
   // ---------------------------------------------------------------- input
   var held = [];
+  // The Apple read one key at a time: U and O were its diagonal jumps.  Here up held together with left or right
+  // is that diagonal (the horizontal pressed last decides which), so two arrow keys do what one letter did.
+  function heldCode() {
+    var top = held[held.length - 1].code, up = false, horiz = null;
+    for (var i = held.length - 1; i >= 0; i--) { var c = held[i].code; if (c === 0x49) up = true; else if ((c === 0x4A || c === 0x4C) && horiz === null) horiz = c; }
+    if (up && horiz !== null) return horiz === 0x4C ? 0x4F : 0x55;
+    return top;
+  }
   function pressKey(code, id) {
     id = id || ('k' + code);
     var i = held.findIndex(function (h) { return h.id === id; }); if (i >= 0) held.splice(i, 1);
     held.push({ id: id, code: code });
     if (titleKey(code)) return;
-    T.input.key = code; T.input.strobe = true; T.input.down = true;
+    T.input.key = heldCode(); T.input.strobe = true; T.input.down = true;
   }
   function releaseKey(id) {
     var i = held.findIndex(function (h) { return h.id === id; }); if (i < 0) return;
     held.splice(i, 1);
-    if (held.length) { T.input.key = held[held.length - 1].code; T.input.strobe = true; T.input.down = true; } else T.input.down = false;
+    if (held.length) { T.input.key = heldCode(); T.input.strobe = true; T.input.down = true; } else T.input.down = false;
   }
   function tapKey(code) { pressKey(code, 'tap'); setTimeout(function () { releaseKey('tap'); }, 60); }
   function setButton(on) { T.input.btn0 = on; $('action').classList.toggle('on', on); }

@@ -138,6 +138,7 @@ POP.top = (function () {
   function LoadDesel() { S.clrF = S.clrDESEL[0]; S.clrB = S.clrDESEL[1]; S.clrU = S.clrDESEL[2]; S.clrD = S.clrDESEL[3]; S.clrbtn = S.clrDESEL[4]; }
   function initinput() { for (var i = 0; i < 5; i++) { S.clrDESEL[i] = 0; S.clrSEL[i] = 0; } }
   function clearjoy() { LoadSelect(); S.clrF = 0; S.clrB = 0; S.clrU = 0; S.clrD = 0; SaveSelect(); }
+  function anykey() { var k = S.keypress; return (k & 0x80) !== 0 && k !== 0x9B && k !== 0x93 && k !== 0x8E; }   // not ESC, ctrl-S, ctrl-N
   function demokeys() {
     if (S.level !== 0) return 0;
     if ((S.BTN0 | S.BTN1) & 0x80) return 0xFF;
@@ -396,7 +397,7 @@ POP.top = (function () {
     if ((S.MinLeft | S.SecLeft) === 0) YouLose();
     if (!(S.message === ContMsg && S.msgtimer !== 0)) { S.message = ContMsg; S.msgtimer = 255; }
     if (S.msgtimer === 1) jump(GOATTRACT);
-    if (!((S.BTN0 | S.BTN1) & 0x80)) return;
+    if (!((S.BTN0 | S.BTN1) & 0x80) && !anykey()) return;             // the Apple wanted the button; a key does as well, as on the Mac
     jump(RESTART);
   }
   function deathsong() {
