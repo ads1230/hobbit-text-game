@@ -96,7 +96,7 @@
       <div id="dpad" aria-label="Direction pad">
         <span class="arrow" data-d="ul">◤</span><span class="arrow" data-d="u">▲</span><span class="arrow" data-d="ur">◥</span>
         <span class="arrow" data-d="l">◀</span><span class="hub"></span><span class="arrow" data-d="r">▶</span>
-        <span class="arrow" data-d="dl">◣</span><span class="arrow" data-d="d">▼</span><span class="arrow" data-d="dr">◢</span>
+        <span class="arrow" data-d="d">▼</span>
       </div>
     </div>
     <div id="right"><button id="action" aria-label="Action button">Action<small>hold: careful</small></button></div>
@@ -394,12 +394,22 @@
 
   var dpad = $('dpad'), padTouch = null, padDir = null, arrows = {};
   Array.prototype.forEach.call(dpad.querySelectorAll('.arrow'), function (a) { arrows[a.dataset.d] = a; });
-  var DIR_KEY = { u: 0x49, d: 0x4B, l: 0x4A, r: 0x4C, ul: 0x55, ur: 0x4F, dl: 0x4B, dr: 0x4B };
-  function padDirection(x, y) {
+  var DIR_KEY = { u: 0x49, d: 0x4B, l: 0x4A, r: 0x4C, ul: 0x55, ur: 0x4F, dl: 0x4A, dr: 0x4C };
+  // The pad is the Apple's keyboard: left and right run, up jumps, the upper diagonals are the diagonal jumps (U and O), down
+  // crouches.  A thumb pushed sideways drifts below the horizontal, so the sideways sectors are wide (100 degrees) and reach
+  // down to 35 degrees below it; straight down is a 50-degree sector, as are up and the two upper diagonals.  Once a
+  // direction is held it keeps it until the thumb has clearly left its sector (8 degrees past the edge) or come back
+  // near the hub, so a wobble does not stop the prince or make him crouch.
+  var SECTORS = [['r', 325, 395], ['ur', 35, 65], ['u', 65, 115], ['ul', 115, 145], ['l', 145, 245], ['d', 245, 295], ['r', 295, 325]];
+  function inSector(sec, ang, slack) { var a0 = sec[1] - slack, a1 = sec[2] + slack; return (ang >= a0 && ang < a1) || (ang + 360 >= a0 && ang + 360 < a1); }
+  function padDirection(x, y, cur) {
     var r = dpad.getBoundingClientRect(), dx = (x - (r.left + r.width / 2)) / (r.width / 2), dy = (y - (r.top + r.height / 2)) / (r.height / 2);
-    var dist = Math.hypot(dx, dy); if (dist < 0.22) return null;
+    var dist = Math.hypot(dx, dy); if (dist < (cur ? 0.15 : 0.22)) return null;
     var ang = Math.atan2(-dy, dx) * 180 / Math.PI; if (ang < 0) ang += 360;
-    return ['r', 'ur', 'u', 'ul', 'l', 'dl', 'd', 'dr'][Math.round(ang / 45) % 8];
+    var i, d = null;
+    for (i = 0; i < SECTORS.length; i++) if (inSector(SECTORS[i], ang, 0)) { d = SECTORS[i][0]; break; }
+    if (cur && d !== cur) for (i = 0; i < SECTORS.length; i++) if (SECTORS[i][0] === cur && inSector(SECTORS[i], ang, 8)) return cur;
+    return d;
   }
   function setPadDir(d) {
     if (d === padDir) return;
@@ -407,8 +417,8 @@
     padDir = d;
     if (d) { arrows[d].classList.add('on'); pressKey(DIR_KEY[d], 'pad'); }
   }
-  dpad.addEventListener('pointerdown', function (e) { e.preventDefault(); if (padTouch !== null) return; padTouch = e.pointerId; dpad.setPointerCapture(e.pointerId); wake(); setPadDir(padDirection(e.clientX, e.clientY)); });
-  dpad.addEventListener('pointermove', function (e) { if (e.pointerId !== padTouch) return; e.preventDefault(); setPadDir(padDirection(e.clientX, e.clientY)); });
+  dpad.addEventListener('pointerdown', function (e) { e.preventDefault(); if (padTouch !== null) return; padTouch = e.pointerId; dpad.setPointerCapture(e.pointerId); wake(); setPadDir(padDirection(e.clientX, e.clientY, null)); });
+  dpad.addEventListener('pointermove', function (e) { if (e.pointerId !== padTouch) return; e.preventDefault(); setPadDir(padDirection(e.clientX, e.clientY, padDir)); });
   function padUp(e) { if (e.pointerId !== padTouch) return; padTouch = null; setPadDir(null); }
   dpad.addEventListener('pointerup', padUp); dpad.addEventListener('pointercancel', padUp); dpad.addEventListener('lostpointercapture', padUp);
   var action = $('action');

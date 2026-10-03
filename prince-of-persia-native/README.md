@@ -32,10 +32,13 @@ browser and offered on the front door.
 
 ## Controls
 
-On a phone: the round pad moves (up is jump, down crouches, the diagonals are
-the diagonal jumps), the Action button is the Apple's button — hold it to grab
-a ledge, step carefully, or fight — and a tap on the screen is "any key"
-(start, skip the story, unpause).
+On a phone: the round pad is the Apple's keyboard — left and right run, up
+jumps, the upper diagonals are the diagonal jumps, down crouches. The sideways
+sectors are wide and reach well below the horizontal, and a direction is kept
+until the thumb has clearly left it, because a thumb pushed sideways drifts
+downwards and a crouch would be the result. The Action button is the Apple's
+button — hold it to grab a ledge, step carefully, or fight — and a tap on the
+screen is "any key" (start, skip the story, unpause).
 
 With a keyboard:
 
