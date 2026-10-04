@@ -10,7 +10,7 @@ tape (the bug-fixed release) built in: open it and play. Another tape image can 
 loaded from the menu and is then remembered by the browser. Nothing is uploaded
 anywhere; saved games stay in the browser's storage and can be exported as files.
 
-## Also here: two Oregon Trails, and Prince of Persia twice
+## Also here: two Oregon Trails, Prince of Persia twice, and Monkey Island
 
 The same treatment for MECC's *The Oregon Trail*, each a self-contained page that
 works on a phone and keeps the journey across reloads:
@@ -38,6 +38,15 @@ And an action game, first emulated and then ported:
   and sound effects are captured from the game running there. It can also
   draw itself with the 1992 Macintosh version's art, black-and-white or
   256-colour, placed by that version's own tables and rules (a menu setting).
+
+And a LucasArts adventure on an engine written for the page:
+
+- [`monkey-island/`](monkey-island/) — *The Secret of Monkey Island* (the 1993
+  Macintosh release) on a SCUMM engine ported to JavaScript from ScummVM:
+  the game's scripts, rooms, actors, costumes, dialogue, verbs, inventory and
+  the Macintosh music all run natively in the browser, with touch controls and
+  saves. It needs your own copy of the game (the StuffIt archive can be chosen
+  as it is) and keeps it on your device.
 
 ## How it works
 

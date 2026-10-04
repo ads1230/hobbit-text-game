@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<title>The Secret of Monkey Island</title>
+<style>
+  :root { color-scheme: dark; --bar: #c8c8c8; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #000; color: #ddd; font: 15px/1.4 -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif; overflow: hidden; }
+  body { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+  #menubar { flex: none; height: 24px; background: var(--bar); color: #000; display: flex; align-items: center; padding: 0 8px; gap: 14px; font-size: 13px; user-select: none; padding-top: env(safe-area-inset-top); box-sizing: content-box; }
+  #menubar .apple { font-weight: bold; }
+  #menubar button { background: none; border: 0; font: inherit; color: #000; padding: 2px 6px; border-radius: 3px; }
+  #menubar button:active { background: #000; color: #fff; }
+  #menubar .title { margin-left: auto; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: #000; position: relative; }
+  @media (orientation: portrait) { #stage { flex: none; } #spacer { flex: 1; } }
+  #screen { image-rendering: pixelated; image-rendering: crisp-edges; touch-action: none; display: block; background: #000; }
+  #screen.arrow { cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='22' height='32' viewBox='0 0 11 16'><path d='M1 1 L1 13 L4 10 L6 15 L8 14 L6 9 L10 9 Z' fill='white' stroke='black' stroke-width='1'/></svg>") 2 2, auto; }
+  #toolbar { flex: none; display: flex; gap: 8px; padding: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); justify-content: center; background: #111; }
+  #toolbar button, .btn { background: #2a2a2a; color: #eee; border: 1px solid #555; border-radius: 8px; padding: 10px 14px; font: inherit; font-size: 14px; min-width: 64px; }
+  #toolbar button { flex: 1 1 0; max-width: 120px; min-width: 0; padding: 10px 6px; font-size: 13px; white-space: nowrap; }
+  #toolbar button:active, .btn:active { background: #444; }
+  .panel { position: fixed; inset: 0; background: rgba(0,0,0,.92); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; overflow: auto; z-index: 10; }
+  .panel h1 { font-size: 22px; margin: 0 0 8px; color: #e8a0ff; }
+  .panel p { max-width: 480px; margin: 6px 0; color: #ccc; }
+  .panel .small { font-size: 12px; color: #888; }
+  .panel input[type=file] { display: none; }
+  .panel .btn { margin: 6px; font-size: 16px; padding: 12px 22px; }
+  .panel .btn.primary { background: #6a2d8a; border-color: #a04ad0; }
+  .hidden { display: none !important; }
+  #slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; width: 100%; max-width: 640px; margin-top: 10px; }
+  .slot { background: #1b1b1b; border: 1px solid #444; border-radius: 8px; padding: 6px; cursor: pointer; }
+  .slot canvas { width: 100%; image-rendering: pixelated; background: #000; border-radius: 4px; display: block; }
+  .slot .lbl { font-size: 12px; margin-top: 4px; color: #bbb; }
+  .slot.empty { color: #666; }
+  #toast { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); background: rgba(40,40,40,.95); color: #fff; padding: 8px 14px; border-radius: 8px; font-size: 13px; pointer-events: none; opacity: 0; transition: opacity .2s; z-index: 20; }
+  #progress { width: 260px; height: 8px; background: #333; border-radius: 4px; overflow: hidden; margin: 10px auto; }
+  #progress div { height: 100%; width: 0; background: #a04ad0; }
+  a { color: #c88cff; }
+</style>
+</head>
+<body>
+<div id="menubar">
+  <button id="mFile">File</button>
+  <button id="mGame">Game</button>
+  <span class="title">The Secret of Monkey Island</span>
+</div>
+<div id="stage">
+  <canvas id="screen" width="320" height="200"></canvas>
+  <div id="setup" class="panel">
+    <h1>The Secret of Monkey Island</h1>
+    <p>A JavaScript port of the SCUMM engine that plays the 1993 Macintosh release of the game, right in your browser.</p>
+    <p>Pick your own copy of the game. The page accepts the original StuffIt archive (<b>.sit</b>), a <b>.zip</b>, or the files <b>MONKEY1.000</b>, <b>MONKEY1.001</b> and the <b>Monkey Island</b> application (its resource fork supplies the music instruments).</p>
+    <p class="small">The game data stays on this device (stored in the browser) and is never uploaded anywhere.</p>
+    <label class="btn primary">Choose game files<input id="files" type="file" multiple></label>
+    <div id="progress" class="hidden"><div></div></div>
+    <p id="setupMsg" class="small"></p>
+  </div>
+  <div id="start" class="panel hidden">
+    <h1>The Secret of Monkey Island</h1>
+    <p id="startMsg">Game data found on this device.</p>
+    <button id="btnPlay" class="btn primary">Play</button>
+    <button id="btnContinue" class="btn hidden">Continue last save</button>
+    <button id="btnReplace" class="btn">Choose different files</button>
+  </div>
+  <div id="saves" class="panel hidden">
+    <h1 id="savesTitle">Save game</h1>
+    <div id="slots"></div>
+    <p><button id="btnSavesClose" class="btn">Cancel</button></p>
+  </div>
+  <div id="menu" class="panel hidden">
+    <h1 id="menuTitle">File</h1>
+    <div id="menuItems"></div>
+    <p><button id="btnMenuClose" class="btn">Close</button></p>
+  </div>
+  <div id="paused" class="panel hidden"><h1 id="pauseMsg">Game paused.</h1><p>Tap to continue.</p></div>
+  <div id="toast"></div>
+</div>
+<div id="toolbar">
+  <button id="btnEsc" title="Skip cut-scene (Esc)">Skip scene</button>
+  <button id="btnDot" title="Skip line (.)">Next line</button>
+  <button id="btnVerb" title="Default action for what is under the pointer (right click)">Action</button>
+  <button id="btnFull" title="Full screen">Full screen</button>
+</div>
+<div id="spacer"></div>
+<script src="js/scumm_res.js"></script>
+<script src="js/scumm_gfx.js"></script>
+<script src="js/scumm_engine.js"></script>
+<script src="js/scumm_ops.js"></script>
+<script src="js/scumm_screen.js"></script>
+<script src="js/scumm_text.js"></script>
+<script src="js/scumm_actor.js"></script>
+<script src="js/scumm_sound.js"></script>
+<script src="js/scumm_save.js"></script>
+<script src="js/stuffit.js"></script>
+<script src="js/unzip.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
