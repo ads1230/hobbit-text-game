@@ -273,6 +273,7 @@
     try { dbPut('saves', 'auto', saveRecord('auto')); } catch (e) { console.warn(e); }
   }
   setInterval(autosave, 120000);
+  window.addEventListener('pagehide', autosave);
 
   // ---------- audio ----------
   var audio = { ctx: null, src: null, gain: null, buffers: {}, muted: false, curId: 0 };

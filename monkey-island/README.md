@@ -32,7 +32,9 @@ current line of dialogue (.), performs the default action, and goes full screen.
 *File* has the saves (eight slots with pictures, plus an automatic save whenever
 the page is hidden) and *Game* has the sound switch and the controls.
 
-With a keyboard: Esc, `.`, F5 for the File menu, and the verbs' usual hotkeys.
+With a keyboard: Esc, `.`, F5 for the File menu, space to pause, `+`/`-` for
+the text speed, and the verbs' usual hotkeys. The code-wheel copy protection
+of the original is skipped, as ScummVM skips it.
 
 ## How it works
 
