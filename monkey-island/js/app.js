@@ -6,20 +6,32 @@
   var image = ctx.createImageData(320, 200), pix32 = new Uint32Array(image.data.buffer);
   var engine = null, res = null, running = false, nextTick = 0, pending = [], pendingAt = 0, raf = 0;
   var gameFiles = null;   // {index, data, rsrc}
+  var embedded = !!window.MI_EMBEDDED;
   var DB = 'mi1-native';
 
-  // ---------- IndexedDB ----------
+  // ---------- storage: IndexedDB, with localStorage as the fallback (e.g. a page opened from a file) ----------
   function idb() {
     return new Promise(function (resolve, reject) {
-      var r = indexedDB.open(DB, 1);
+      if (typeof indexedDB === 'undefined') { reject(new Error('no IndexedDB')); return; }
+      var r;
+      try { r = indexedDB.open(DB, 1); } catch (e) { reject(e); return; }
       r.onupgradeneeded = function () { var db = r.result; db.createObjectStore('files'); db.createObjectStore('saves'); };
-      r.onsuccess = function () { resolve(r.result); }; r.onerror = function () { reject(r.error); };
+      r.onsuccess = function () { resolve(r.result); }; r.onerror = function () { reject(r.error); }; r.onblocked = function () { reject(new Error('blocked')); };
     });
   }
-  function dbGet(store, key) { return idb().then(function (db) { return new Promise(function (res, rej) { var t = db.transaction(store).objectStore(store).get(key); t.onsuccess = function () { res(t.result); }; t.onerror = function () { rej(t.error); }; }); }); }
-  function dbPut(store, key, val) { return idb().then(function (db) { return new Promise(function (res, rej) { var t = db.transaction(store, 'readwrite'); t.objectStore(store).put(val, key); t.oncomplete = function () { res(); }; t.onerror = function () { rej(t.error); }; }); }); }
-  function dbDel(store, key) { return idb().then(function (db) { return new Promise(function (res, rej) { var t = db.transaction(store, 'readwrite'); t.objectStore(store).delete(key); t.oncomplete = function () { res(); }; t.onerror = function () { rej(t.error); }; }); }); }
-  function dbAll(store) { return idb().then(function (db) { return new Promise(function (res, rej) { var out = {}, c = db.transaction(store).objectStore(store).openCursor(); c.onsuccess = function () { var cur = c.result; if (cur) { out[cur.key] = cur.value; cur.continue(); } else res(out); }; c.onerror = function () { rej(c.error); }; }); }); }
+  function b64enc(u8) { var s = ''; for (var i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, u8.subarray(i, i + 8192)); return btoa(s); }
+  function b64dec(str) { var s = atob(str), u8 = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) u8[i] = s.charCodeAt(i); return u8; }
+  function lsKey(store, key) { return 'mi1:' + store + ':' + key; }
+  function lsEncode(val) { return JSON.stringify(val, function (k, v) { return v && v.buffer instanceof ArrayBuffer ? { __t: v.constructor.name, __b: b64enc(new Uint8Array(v.buffer, v.byteOffset, v.byteLength)) } : v; }); }
+  function lsDecode(str) { return JSON.parse(str, function (k, v) { if (v && v.__t && v.__b) { var raw = b64dec(v.__b); return v.__t === 'Uint8Array' ? raw : new (window[v.__t] || Uint8Array)(raw.buffer); } return v; }); }
+  function lsGet(store, key) { try { var v = localStorage.getItem(lsKey(store, key)); return Promise.resolve(v ? lsDecode(v) : undefined); } catch (e) { return Promise.reject(e); } }
+  function lsPut(store, key, val) { try { localStorage.setItem(lsKey(store, key), lsEncode(val)); return Promise.resolve(); } catch (e) { return Promise.reject(e); } }
+  function lsDel(store, key) { try { localStorage.removeItem(lsKey(store, key)); } catch (e) {} return Promise.resolve(); }
+  function lsAll(store) { var out = {}; try { for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i), pre = lsKey(store, ''); if (k.indexOf(pre) === 0) out[k.slice(pre.length)] = lsDecode(localStorage.getItem(k)); } } catch (e) {} return Promise.resolve(out); }
+  function dbGet(store, key) { return idb().then(function (db) { return new Promise(function (res, rej) { var t = db.transaction(store).objectStore(store).get(key); t.onsuccess = function () { res(t.result); }; t.onerror = function () { rej(t.error); }; }); }).catch(function () { return lsGet(store, key); }); }
+  function dbPut(store, key, val) { return idb().then(function (db) { return new Promise(function (res, rej) { var t = db.transaction(store, 'readwrite'); t.objectStore(store).put(val, key); t.oncomplete = function () { res(); }; t.onerror = function () { rej(t.error); }; }); }).catch(function () { return lsPut(store, key, val); }); }
+  function dbDel(store, key) { return idb().then(function (db) { return new Promise(function (res, rej) { var t = db.transaction(store, 'readwrite'); t.objectStore(store).delete(key); t.oncomplete = function () { res(); }; t.onerror = function () { rej(t.error); }; }); }).catch(function () { return lsDel(store, key); }); }
+  function dbAll(store) { return idb().then(function (db) { return new Promise(function (res, rej) { var out = {}, c = db.transaction(store).objectStore(store).openCursor(); c.onsuccess = function () { var cur = c.result; if (cur) { out[cur.key] = cur.value; cur.continue(); } else res(out); }; c.onerror = function () { rej(c.error); }; }); }).catch(function () { return lsAll(store); }); }
 
   function toast(msg, ms) { var t = $('toast'); t.textContent = msg; t.style.opacity = 1; clearTimeout(t._tm); t._tm = setTimeout(function () { t.style.opacity = 0; }, ms || 1800); }
   function show(id) { $(id).classList.remove('hidden'); }
@@ -328,7 +340,7 @@
       ['Load game…', function () { closeMenu(false); openSaves(false); }],
       ['Restart game', function () { if (confirm('Start the game from the beginning?')) { closeMenu(false); restartGame(); running = true; raf = requestAnimationFrame(loop); } }],
       ['Choose different game files', function () { closeMenu(false); running = false; audioStop(); show('setup'); }]
-    ] : [
+    ].filter(function (it) { return !(embedded && it[0] === 'Choose different game files'); }) : [
       [audio.muted ? 'Sound: off (turn on)' : 'Sound: on (turn off)', function () { setMuted(!audio.muted); closeMenu(true); }],
       ['Skip cut-scene (Esc)', function () { closeMenu(true); sendKey('Escape', 27); }],
       ['Controls', function () { alert('Tap: walk / use the verbs and objects. Long press: the default action for what you touched (like a right click).\n"Skip" skips a cut-scene, "Next line" skips the current line of dialogue.\nKeyboard: Esc skips a cut-scene, "." skips a line, F5 opens the File menu, and the verbs have their usual hotkeys.'); }],
@@ -378,6 +390,14 @@
 
   // ---------- startup ----------
   (async function init() {
+    if (window.MI_EMBEDDED) {   // a build with the game data inside the page (tools/build.js)
+      var em = window.MI_EMBEDDED;
+      gameFiles = { index: b64dec(em.index), data: b64dec(em.data), rsrc: em.rsrc ? b64dec(em.rsrc) : null };
+      window.MI_EMBEDDED = null;
+      hide('btnReplace'); hide('setup'); $('startMsg').textContent = gameFiles.rsrc ? '' : 'No Macintosh application was built in, so there is no music.';
+      showStart();
+      return;
+    }
     try {
       var files = await dbAll('files');
       if (files.index && files.data) { gameFiles = { index: files.index, data: files.data, rsrc: files.rsrc || null }; hide('setup'); showStart(); }

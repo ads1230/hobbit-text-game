@@ -36,6 +36,24 @@ With a keyboard: Esc, `.`, F5 for the File menu, space to pause, `+`/`-` for
 the text speed, and the verbs' usual hotkeys. The code-wheel copy protection
 of the original is skipped, as ScummVM skips it.
 
+The files only have to be chosen once per browser: they are kept in its
+storage and the page starts straight from them afterwards.
+
+## A page with the game built in
+
+`tools/build.js` makes one file, `monkey-island-full.html`, with the engine
+and the game data inside it, so nothing has to be chosen at all: open it and
+play.
+
+```
+node tools/build.js "The Secret of Monkey Island.sit"      # or the three files, or their folder
+```
+
+That page is for your own devices (open it from disk, or keep it somewhere
+private); it must not go on a public site, since the game data in it is
+Lucasfilm's. Saves work as on the hosted page, falling back to the browser's
+local storage when the file is opened from disk.
+
 ## How it works
 
 `js/scumm_res.js` reads the index and the data file (every byte XOR 0x69, the
