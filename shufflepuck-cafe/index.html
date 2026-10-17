@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<title>Shufflepuck Café</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23000'/%3E%3Cellipse cx='8' cy='9' rx='6' ry='3' fill='%23fff'/%3E%3Cellipse cx='8' cy='7' rx='6' ry='3' fill='%23fff' stroke='%23000' stroke-width='.6'/%3E%3C/svg%3E">
+<style>
+  :root { color-scheme: dark; --bar: #d8d8d8; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #000; color: #ddd; font: 15px/1.4 -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif; overflow: hidden; }
+  body { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+  #menubar { flex: none; height: 24px; background: var(--bar); color: #000; display: flex; align-items: center; padding: 0 6px; gap: 2px; font-size: 13px; user-select: none; padding-top: env(safe-area-inset-top); box-sizing: content-box; }
+  #menubar button { background: none; border: 0; font: inherit; color: #000; padding: 2px 9px; border-radius: 3px; }
+  #menubar button.open, #menubar button:active { background: #000; color: #fff; }
+  #menubar .title { margin-left: auto; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; }
+  .menu { position: fixed; z-index: 30; background: #fff; color: #000; border: 1px solid #000; box-shadow: 2px 2px 0 #000; min-width: 170px; font-size: 13px; padding: 2px 0; }
+  .menu .item { padding: 3px 14px 3px 22px; position: relative; white-space: nowrap; }
+  .menu .item:active, .menu .item:hover { background: #000; color: #fff; }
+  .menu .item.checked::before { content: "\2713"; position: absolute; left: 7px; }
+  .menu .item.disabled { color: #888; pointer-events: none; }
+  .menu .sep { border-top: 1px dotted #000; margin: 3px 0; }
+  #stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: #000; position: relative; touch-action: none; user-select: none; -webkit-user-select: none; }
+  #screen { image-rendering: pixelated; image-rendering: crisp-edges; touch-action: none; display: block; background: #000; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; cursor: crosshair; }
+  #toolbar { flex: none; display: flex; gap: 8px; padding: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); justify-content: center; background: #111; }
+  #toolbar button, .btn { background: #2a2a2a; color: #eee; border: 1px solid #555; border-radius: 8px; padding: 10px 14px; font: inherit; font-size: 14px; }
+  #toolbar button { flex: 1 1 0; max-width: 150px; min-width: 0; padding: 10px 6px; font-size: 13px; white-space: nowrap; }
+  #toolbar button:active, .btn:active { background: #444; }
+  .panel { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 40; }
+  .dlg { background: #fff; color: #000; border: 1px solid #000; box-shadow: 3px 3px 0 #000; padding: 14px 18px; min-width: 300px; max-width: 480px; font-size: 14px; }
+  .dlg h2 { margin: 0 0 10px; font-size: 16px; }
+  .dlg .slider { display: grid; grid-template-columns: 1fr 160px 44px; align-items: center; gap: 8px; margin: 6px 0; }
+  .dlg input[type=range] { width: 100%; }
+  .dlg input[type=text] { width: 100%; font: 16px -apple-system, Helvetica, sans-serif; padding: 6px; border: 1px solid #000; }
+  .dlg .buttons { display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px; }
+  .dlg .buttons button { background: #fff; color: #000; border: 1px solid #000; border-radius: 10px; padding: 6px 18px; font: inherit; }
+  .dlg .buttons button.primary { border-width: 3px; }
+  .hidden { display: none !important; }
+  #err { position: fixed; left: 0; right: 0; bottom: 0; background: #400; color: #fcc; font: 12px monospace; padding: 6px; white-space: pre-wrap; z-index: 50; }
+</style>
+</head>
+<body>
+<div id="menubar"></div>
+<div id="stage">
+  <canvas id="screen" width="512" height="342"></canvas>
+</div>
+<div id="toolbar">
+  <button id="btnKey" title="Pause / resume (any key)">Pause / Resume</button>
+  <button id="btnSound" title="Sound on or off">Sound</button>
+  <button id="btnFull" title="Full screen">Full screen</button>
+</div>
+<div id="dialog" class="panel hidden"><div class="dlg"><h2 id="dlgTitle">Dialog</h2><div id="dlgSliders"></div><div class="buttons"><button id="dlgCancel">Cancel</button><button id="dlgOk" class="primary">Set It</button></div></div></div>
+<div id="nameDlg" class="panel hidden"><div class="dlg"><h2>Your name, Champ?</h2><input id="nameInput" type="text" autocomplete="off"><div class="buttons"><button id="nameOk" class="primary">OK</button></div></div></div>
+<div id="quit" class="panel hidden"><div class="dlg"><h2>Thanks for playing.</h2><p>Reload the page to open the café again.</p></div></div>
+<div id="err" class="hidden"></div>
+<script src="js/data.js"></script>
+<script src="js/qd.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/opponents.js"></script>
+<script src="js/flow.js"></script>
+<script src="js/scenes.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

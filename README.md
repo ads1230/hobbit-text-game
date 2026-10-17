@@ -10,7 +10,7 @@ tape (the bug-fixed release) built in: open it and play. Another tape image can 
 loaded from the menu and is then remembered by the browser. Nothing is uploaded
 anywhere; saved games stay in the browser's storage and can be exported as files.
 
-## Also here: two Oregon Trails, Prince of Persia twice, and Monkey Island
+## Also here: two Oregon Trails, Prince of Persia twice, Monkey Island and Shufflepuck Café
 
 The same treatment for MECC's *The Oregon Trail*, each a self-contained page that
 works on a phone and keeps the journey across reloads:
@@ -47,6 +47,19 @@ And a LucasArts adventure on an engine written for the page:
   the Macintosh music all run natively in the browser, with touch controls and
   saves. It needs your own copy of the game (the StuffIt archive can be chosen
   as it is) and keeps it on your device.
+
+And a Macintosh bar game, rebuilt from its machine code:
+
+- [`shufflepuck-cafe/`](shufflepuck-cafe/) — Brøderbund's 1988 *Shufflepuck
+  Café* (`index.html`, or the single file `shufflepuck.html`): air hockey
+  against the nine regulars of a space-port bar, re-implemented in JavaScript
+  from the 68000 program of the Macintosh release — its copy-protection
+  loader was run under an emulator just long enough to decrypt the code,
+  which was then disassembled and ported: the table, the puck's physics, each
+  opponent's reflexes from their own parameter tables, their serves and
+  reactions, the chalk-hand scoreboard, the tournament and the roster — drawn
+  with a small QuickDraw from the game's own pictures, fonts and sounds. Mouse
+  or touch; a phone's finger drags the paddle from anywhere on the screen.
 
 ## How it works
 
