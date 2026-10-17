@@ -311,10 +311,20 @@ var SPC = (function () {
 
   // =============================================================== physics
   // F5_363e: the player's paddle follows the mouse through a draggable box
-  var mouse = { x: 256, y: 171, down: false };
+  // (mouse.direct, a page option: the paddle's centre sits under the pointer instead,
+  // by inverting the projection, so the pointer can stay visible on the paddle)
+  var mouse = { x: 256, y: 171, down: false, direct: false };
   function playerFromMouse() {
     S.plzPrev = S.plz; S.plxPrev = S.plx;
     var mx = mouse.x, my = mouse.y, box = S.box, dh = 0, dv = 0;
+    if (mouse.direct) {
+      var v = clamp(my, 214, 310);                       // the paddle's middle (y 280) at z 300 .. 0
+      S.plz = clamp(tdiv(280 * 576, v - 30) - 576, 0, 300);
+      S.plx = clamp(tdiv((mx - 255) * (S.plz + 576), 576), S.plHw - 250, 250 - S.plHw);
+      box.l = mx - S.plx - S.plHw + 250; box.r = box.l - 2 * S.plHw + 500;   // keep the box consistent
+      box.t = my - 300 + S.plz; box.b = box.t + 300;
+      playerRect(); return;
+    }
     if (mx > box.r) dh = mx - box.r; else if (mx < box.l) dh = mx - box.l;
     if (my > box.b) dv = my - box.b; else if (my < box.t) dv = my - box.t;
     QD.offsetRect(box, dh, dv);

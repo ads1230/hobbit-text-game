@@ -20,16 +20,19 @@ and into the roster of champions, which the browser keeps.
 
 ## Controls
 
-The paddle follows the mouse, as on the Mac: left and right across the table,
-forward and back along it. As on the Mac, the pointer is hidden during play —
-the paddle is the cursor — and a click on the table locks the mouse to the
-page, so a fast swing cannot run off into the browser; any key pauses the
-game and gives the pointer back (so does `Esc`). The puck is hit by moving
-the paddle through it — the faster the paddle, the harder the shot, and
-sideways movement puts sideways speed on the puck. Holding the mouse button
-while hitting uses the *Button Down* paddle settings (a little more forward
-power by default); both sets can be changed from the *Paddle* menu. To serve,
-push the puck.
+The paddle sits under the mouse pointer: left and right across the table,
+forward and back along it. The puck is hit by moving the paddle through it —
+the faster the paddle, the harder the shot, and sideways movement puts
+sideways speed on the puck. Holding the mouse button while hitting uses the
+*Button Down* paddle settings (a little more forward power by default); both
+sets can be changed from the *Paddle* menu. To serve, push the puck.
+
+*Under the Pointer* in the *Paddle* menu switches between that and the Mac's
+own control: there the paddle moves one table unit per pixel of mouse travel
+through a box that follows the mouse (so the table's depth takes three
+hundred pixels of travel rather than a hundred, and shots want a longer
+swing), and, as on the Mac, the pointer is hidden during play — the paddle is
+the cursor — and comes back at the bar and whenever the game is paused.
 
 On a phone, drag anywhere on the screen (including the black area around the
 table): the paddle moves with the finger, a little faster, so the hand never

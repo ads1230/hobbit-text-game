@@ -47,53 +47,46 @@
     var r = canvas.getBoundingClientRect();
     return { x: Math.floor((e.clientX - r.left) * 512 / r.width), y: Math.floor((e.clientY - r.top) * 342 / r.height) };
   }
-  // A mouse positions the paddle as on the Mac: the paddle's box follows the pointer, and
-  // during a game the pointer itself is hidden and locked to the page (the paddle is the
-  // cursor), so a fast swing cannot run off the table into the browser. A finger steers
-  // it by dragging anywhere on the screen: the drag moves the paddle by the same distance,
-  // so the hand never covers the paddle. A second finger held down anywhere is the mouse
-  // button (the "button down" paddle settings).
+  // A mouse puts the paddle under the pointer (the Paddle menu's "Under the Pointer", on by
+  // default). Without it the paddle follows the mouse as on the Mac — through the game's
+  // draggable box, one unit per pixel — and during a game the pointer is hidden, as the Mac
+  // hid its cursor, because the paddle is then the cursor.
+  // A finger steers it by dragging anywhere on the screen: the drag moves the paddle by
+  // the same distance, so the hand never covers the paddle. A second finger held down
+  // anywhere is the mouse button (the "button down" paddle settings).
   var touches = 0, dragId = null, dragX = 0, dragY = 0, accX = 0, accY = 0, TOUCH_GAIN = 1.5;
-  var stage = $('stage'), locked = false;
+  var stage = $('stage');
+  var prefs = { pointerPaddle: true };
+  try { var pj = JSON.parse(localStorage.getItem('spc.prefs')); if (pj && typeof pj === 'object' && 'pointerPaddle' in pj) prefs.pointerPaddle = !!pj.pointerPaddle; } catch (err) {}
+  function savePrefs() { try { localStorage.setItem('spc.prefs', JSON.stringify(prefs)); } catch (err) {} }
   function onCanvas(e) { var r = canvas.getBoundingClientRect(); return e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom; }
   function nudge(dx, dy, k) {
     accX = Math.max(-2000, Math.min(2500, accX + dx * k)); accY = Math.max(-2000, Math.min(2300, accY + dy * k));
     mouse.x = Math.round(accX); mouse.y = Math.round(accY);
   }
   window.addEventListener('pointermove', function (e) {
-    var r = canvas.getBoundingClientRect();
     if (e.pointerType === 'touch') {
-      if (e.pointerId === dragId) { nudge(e.clientX - dragX, e.clientY - dragY, 512 / r.width * TOUCH_GAIN); dragX = e.clientX; dragY = e.clientY; }
+      if (e.pointerId === dragId) { var r = canvas.getBoundingClientRect(); nudge(e.clientX - dragX, e.clientY - dragY, 512 / r.width * TOUCH_GAIN); dragX = e.clientX; dragY = e.clientY; }
       return;
     }
-    if (locked) { nudge(e.movementX || 0, e.movementY || 0, 512 / r.width); return; }
+    mouse.direct = prefs.pointerPaddle;
     var p = canvasPoint(e); mouse.x = Math.max(0, Math.min(511, p.x)); mouse.y = Math.max(0, Math.min(341, p.y));
   });
-  document.addEventListener('pointerlockchange', function () { locked = document.pointerLockElement === stage; if (locked) { accX = mouse.x; accY = mouse.y; } });
-  function lockPointer() {
-    if (locked || !stage.requestPointerLock) return;
-    try { var pr = stage.requestPointerLock(); if (pr && pr.catch) pr.catch(function () {}); } catch (err) {}
-  }
-  function unlockPointer() { if (locked && document.exitPointerLock) { try { document.exitPointerLock(); } catch (err) {} } }
   stage.addEventListener('pointerdown', function (e) {
     audioInit(); var p = canvasPoint(e), inside = onCanvas(e);
     if (e.pointerType === 'touch') {
-      touches++; mouse.down = touches >= 2;
+      touches++; mouse.down = touches >= 2; mouse.direct = false;
       if (touches === 1) { dragId = e.pointerId; dragX = e.clientX; dragY = e.clientY; accX = mouse.x; accY = mouse.y; if (inside) F.pushEvent({ type: 'click', x: p.x, y: p.y }); }
-    } else if (inside) {
-      if (!locked) { mouse.x = p.x; mouse.y = p.y; }
-      mouse.down = true; F.pushEvent({ type: 'click', x: p.x, y: p.y });
-      if (S.scene === 'table') lockPointer();          // the click starts (or continues) a game
-    }
+    } else if (inside) { mouse.direct = prefs.pointerPaddle; mouse.x = p.x; mouse.y = p.y; mouse.down = true; F.pushEvent({ type: 'click', x: p.x, y: p.y }); }
     try { stage.setPointerCapture(e.pointerId); } catch (err) {}
     e.preventDefault();
   });
-  // the cursor as the game shows it: hidden during the title and during play, shown at the bar and between games
+  // the cursor as the game shows it: hidden during the title and during play (unless the
+  // paddle is under the pointer), shown at the bar and between games
   var cursorShown = null;
   function updateCursor() {
-    var show = S.scene === 'bar' || (S.scene === 'table' && !S.running);
+    var show = S.scene === 'bar' || (S.scene === 'table' && !S.running) || prefs.pointerPaddle;
     if (show !== cursorShown) { cursorShown = show; stage.style.cursor = show ? '' : 'none'; canvas.style.cursor = show ? 'crosshair' : 'none'; }
-    if (show && locked) unlockPointer();
   }
   function up(e) {
     if (e.pointerType === 'touch') { touches = Math.max(0, touches - 1); mouse.down = touches >= 2; if (e.pointerId === dragId) dragId = null; }
@@ -114,7 +107,7 @@
     apple: { title: '', items: ['About Shufflepuck…'] },
     file: { title: 'File', items: ['Roster of Champions', '-', 'Quit'] },
     game: { title: 'Game', items: ['New Game', 'New Opponent', '-', 'Sound'] },
-    paddle: { title: 'Paddle', items: ['Size…', 'Button Up…', 'Button Down…', '-', 'Tournament Paddle'] },
+    paddle: { title: 'Paddle', items: ['Size…', 'Button Up…', 'Button Down…', '-', 'Tournament Paddle', '-', 'Under the Pointer'] },
     blocker: { title: 'Blocker', items: ['None', 'Small', 'Medium', 'Large', 'Custom…'] },
     droid: { title: 'Droid', items: ['Paddle Size…', 'Paddle Power…', '-', 'Idle…', 'Speed…', 'Return…', 'Serve…'] }
   };
@@ -139,7 +132,11 @@
       el.className = 'item'; el.textContent = it;
       var st = itemState(key, i + 1);
       if (st.checked) el.classList.add('checked'); if (st.disabled) el.classList.add('disabled');
-      el.addEventListener('pointerup', function (e) { e.stopPropagation(); if (st.disabled) return; closeMenus(); F.pushEvent({ type: 'menu', menu: key, item: i + 1 }); });
+      el.addEventListener('pointerup', function (e) {
+        e.stopPropagation(); if (st.disabled) return; closeMenus();
+        if (key === 'paddle' && i + 1 === 7) { prefs.pointerPaddle = !prefs.pointerPaddle; savePrefs(); return; }   // a page option, not the game's
+        F.pushEvent({ type: 'menu', menu: key, item: i + 1 });
+      });
       d.appendChild(el);
     });
     document.body.appendChild(d);
@@ -152,7 +149,8 @@
     var s = { checked: false, disabled: false };
     if (menu === 'game' && item === 4) s.checked = !!S.sound;
     if (menu === 'paddle' && item === 5) s.checked = SPC.paddleIsDefault();
-    if (menu === 'paddle' && S.tournament) s.disabled = true;
+    if (menu === 'paddle' && S.tournament && item !== 7) s.disabled = true;
+    if (menu === 'paddle' && item === 7) s.checked = prefs.pointerPaddle;
     if (menu === 'blocker') { var sel = !S.blockerOn ? 1 : S.bHw === 25 ? 2 : S.bHw === 50 ? 3 : S.bHw === 75 ? 4 : 5; s.checked = item === sel; if (S.tournament) s.disabled = true; }
     if (menu === 'game' && (item === 1 || item === 2) && !S.opp) s.disabled = true;
     return s;
