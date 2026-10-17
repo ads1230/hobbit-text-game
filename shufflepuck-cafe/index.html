@@ -2,59 +2,143 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="color-scheme" content="dark">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#000000">
 <title>Shufflepuck Café</title>
+<meta name="description" content="The 1988 Macintosh Shufflepuck Café, re-implemented in JavaScript from its 68000 code, with touch controls.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23000'/%3E%3Cellipse cx='8' cy='9' rx='6' ry='3' fill='%23fff'/%3E%3Cellipse cx='8' cy='7' rx='6' ry='3' fill='%23fff' stroke='%23000' stroke-width='.6'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700&family=Courier+Prime:wght@400;700&display=swap">
 <style>
-  :root { color-scheme: dark; --bar: #d8d8d8; }
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; height: 100%; background: #000; color: #ddd; font: 15px/1.4 -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif; overflow: hidden; }
-  body { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
-  #menubar { flex: none; height: 24px; background: var(--bar); color: #000; display: flex; align-items: center; padding: 0 6px; gap: 2px; font-size: 13px; user-select: none; padding-top: env(safe-area-inset-top); box-sizing: content-box; }
-  #menubar button { background: none; border: 0; font: inherit; color: #000; padding: 2px 9px; border-radius: 3px; }
-  #menubar button.open, #menubar button:active { background: #000; color: #fff; }
-  #menubar .title { margin-left: auto; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; }
-  .menu { position: fixed; z-index: 30; background: #fff; color: #000; border: 1px solid #000; box-shadow: 2px 2px 0 #000; min-width: 170px; font-size: 13px; padding: 2px 0; }
-  .menu .item { padding: 3px 14px 3px 22px; position: relative; white-space: nowrap; }
-  .menu .item:active, .menu .item:hover { background: #000; color: #fff; }
-  .menu .item.checked::before { content: "\2713"; position: absolute; left: 7px; }
-  .menu .item.disabled { color: #888; pointer-events: none; }
-  .menu .sep { border-top: 1px dotted #000; margin: 3px 0; }
-  #stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: #000; position: relative; touch-action: none; user-select: none; -webkit-user-select: none; }
-  #screen { image-rendering: pixelated; image-rendering: crisp-edges; touch-action: none; display: block; background: #000; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; cursor: crosshair; }
-  #toolbar { flex: none; display: flex; gap: 8px; padding: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); justify-content: center; background: #111; }
-  #toolbar button, .btn { background: #2a2a2a; color: #eee; border: 1px solid #555; border-radius: 8px; padding: 10px 14px; font: inherit; font-size: 14px; }
-  #toolbar button { flex: 1 1 0; max-width: 150px; min-width: 0; padding: 10px 6px; font-size: 13px; white-space: nowrap; }
-  #toolbar button:active, .btn:active { background: #444; }
-  .panel { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 40; }
-  .dlg { background: #fff; color: #000; border: 1px solid #000; box-shadow: 3px 3px 0 #000; padding: 14px 18px; min-width: 300px; max-width: 480px; font-size: 14px; }
-  .dlg h2 { margin: 0 0 10px; font-size: 16px; }
-  .dlg .slider { display: grid; grid-template-columns: 1fr 160px 44px; align-items: center; gap: 8px; margin: 6px 0; }
-  .dlg input[type=range] { width: 100%; }
-  .dlg input[type=text] { width: 100%; font: 16px -apple-system, Helvetica, sans-serif; padding: 6px; border: 1px solid #000; }
-  .dlg .buttons { display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px; }
-  .dlg .buttons button { background: #fff; color: #000; border: 1px solid #000; border-radius: 10px; padding: 6px 18px; font: inherit; }
-  .dlg .buttons button.primary { border-width: 3px; }
+  :root {
+    --bg: #000; --panel: #15131A; --panel-2: #1F1C26; --ink: #ECE6D8; --ink-soft: #BDB5A5; --muted: #7E786C; --rule: #2A2834; --rule-strong: #3B3848;
+    --accent: #E88AB8; --accent-ink: #1A0A12; --accent-soft: #3A1A2C; --danger: #E07A6A;
+    --sans: 'Alegreya Sans', 'Gill Sans', 'Segoe UI', system-ui, sans-serif; --mono: 'Courier Prime', 'Courier New', Courier, monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #000; } }
+  :root[data-theme="dark"] { --bg: #000; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 15px; overflow: hidden; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; touch-action: none; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  #app { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #000; touch-action: none; padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
+  #app.portrait { align-items: flex-start; padding-top: calc(50px + env(safe-area-inset-top, 0px)); }
+  #stage { position: relative; background: #000; flex: none; }
+  #screen { display: block; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; background: #000; -webkit-touch-callout: none; cursor: crosshair; }
+  #hint { position: absolute; left: 0; right: 0; top: 100%; margin-top: 14px; text-align: center; color: var(--muted); font-size: 13px; pointer-events: none; }
+
+  #corner { position: fixed; top: calc(6px + env(safe-area-inset-top, 0px)); right: calc(8px + env(safe-area-inset-right, 0px)); display: flex; gap: 6px; z-index: 20; }
+  .iconbtn { border: 1px solid var(--rule-strong); background: rgba(22,21,29,.85); border-radius: 8px; width: 38px; height: 34px; display: inline-grid; place-items: center; color: var(--ink); flex: none; backdrop-filter: blur(6px); }
+  .iconbtn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  #toast { position: fixed; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%) translateY(20px); background: var(--panel-2); color: var(--ink); border: 1px solid var(--rule-strong); border-radius: 10px; padding: 9px 14px; font-size: 14px; opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none; z-index: 40; max-width: 90vw; text-align: center; }
+  #toast.show { opacity: 1; transform: translateX(-50%); }
+
+  #scrim { position: fixed; inset: 0; background: rgba(0,0,0,.5); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 30; }
+  #scrim.open { opacity: 1; pointer-events: auto; }
+  #drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(380px, 92vw); background: var(--panel); border-left: 1px solid var(--rule); transform: translateX(100%); transition: transform .22s; z-index: 31; overflow-y: auto; padding: calc(14px + env(safe-area-inset-top, 0px)) 18px calc(20px + env(safe-area-inset-bottom, 0px)); touch-action: pan-y; }
+  #drawer.open { transform: none; }
+  #drawer h2 { font: 700 20px/1.2 var(--sans); margin: 0 0 2px; display: flex; align-items: center; }
+  #drawer .sub { color: var(--muted); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 14px; }
+  #drawer h3 { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 20px 0 8px; font-weight: 700; }
+  #drawer h3 small { text-transform: none; letter-spacing: 0; font-weight: 400; margin-left: 6px; }
+  .seg { display: inline-flex; border: 1px solid var(--rule-strong); border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0; background: transparent; padding: 7px 12px; color: var(--ink-soft); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+  .setting { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--rule); }
+  .setting .lbl { font-weight: 500; flex: 1; min-width: 0; }
+  .setting .lbl small { display: block; font-weight: 400; color: var(--muted); font-size: 12.5px; }
+  .setting input[type=range] { width: 130px; flex: none; accent-color: var(--accent); touch-action: none; }
+  .setting .val { width: 36px; text-align: right; font: 14px var(--mono); color: var(--ink-soft); flex: none; }
+  .group.off { opacity: .45; pointer-events: none; }
+  .about { font-size: 13.5px; color: var(--ink-soft); line-height: 1.5; }
+  .about a { color: var(--accent); }
+  .keys { font: 13px/1.6 var(--mono); color: var(--ink-soft); }
+  .keys b { color: var(--ink); }
+  .menubtn { display: block; width: 100%; margin-top: 8px; padding: 10px 12px; border-radius: 9px; border: 1px solid var(--rule-strong); background: var(--panel-2); color: var(--ink); font-weight: 600; text-align: left; }
+  .menubtn small { display: block; font-weight: 400; color: var(--muted); font-size: 12.5px; margin-top: 1px; }
+  .menubtn.danger { color: var(--danger); }
+  .menubtn:disabled { opacity: .45; cursor: default; }
+
+  .panel { position: fixed; inset: 0; background: rgba(0,0,0,.72); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; backdrop-filter: blur(3px); }
+  .panel .card { background: var(--panel); border: 1px solid var(--rule-strong); border-radius: 14px; padding: 22px 22px 18px; max-width: 420px; width: 100%; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+  .panel h1 { margin: 0 0 4px; font: 700 24px/1.1 var(--sans); }
+  .panel p { margin: 8px 0; color: var(--ink-soft); line-height: 1.45; }
+  .panel input[type=text] { width: 100%; font: 17px var(--sans); padding: 9px 10px; border: 1px solid var(--rule-strong); border-radius: 8px; background: var(--panel-2); color: var(--ink); margin: 6px 0 4px; }
+  .bigbtn { display: block; width: 100%; margin-top: 10px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--rule-strong); background: var(--panel-2); color: var(--ink); font-weight: 700; text-align: left; }
+  .bigbtn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .bigbtn small { display: block; font-weight: 400; color: inherit; opacity: .75; font-size: 13px; margin-top: 2px; }
   .hidden { display: none !important; }
-  #err { position: fixed; left: 0; right: 0; bottom: 0; background: #400; color: #fcc; font: 12px monospace; padding: 6px; white-space: pre-wrap; z-index: 50; }
+  #err { position: fixed; left: 0; right: 0; bottom: 0; background: #400; color: #fcc; font: 12px var(--mono); padding: 6px; white-space: pre-wrap; z-index: 60; }
 </style>
 </head>
 <body>
-<div id="menubar"></div>
-<div id="stage">
-  <canvas id="screen" width="512" height="342"></canvas>
+<div id="app" class="landscape">
+  <div id="stage"><canvas id="screen" width="512" height="342"></canvas><div id="hint"></div></div>
 </div>
-<div id="toolbar">
-  <button id="btnKey" title="Pause / resume (any key)">Pause / Resume</button>
-  <button id="btnSound" title="Sound on or off">Sound</button>
-  <button id="btnFull" title="Full screen">Full screen</button>
+<div id="corner">
+  <button class="iconbtn" id="btnMenu" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
 </div>
-<div id="dialog" class="panel hidden"><div class="dlg"><h2 id="dlgTitle">Dialog</h2><div id="dlgSliders"></div><div class="buttons"><button id="dlgCancel">Cancel</button><button id="dlgOk" class="primary">Set It</button></div></div></div>
-<div id="nameDlg" class="panel hidden"><div class="dlg"><h2>Your name, Champ?</h2><input id="nameInput" type="text" autocomplete="off"><div class="buttons"><button id="nameOk" class="primary">OK</button></div></div></div>
-<div id="quit" class="panel hidden"><div class="dlg"><h2>Thanks for playing.</h2><p>Reload the page to open the café again.</p></div></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<div id="scrim"></div>
+<aside id="drawer" aria-label="Menu">
+  <h2>Shufflepuck Café<span style="flex:1"></span><button class="iconbtn" id="btnClose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></h2>
+  <div class="sub">Macintosh · Brøderbund, 1988 · native port</div>
+  <p class="about" style="margin:0 0 6px">The game is paused while this menu is open.</p>
+
+  <h3>Game</h3>
+  <button class="menubtn" id="mResume">Resume<small>Close the menu and carry on</small></button>
+  <button class="menubtn" id="mNewGame">New game<small>The board is wiped and the same opponent plays again</small></button>
+  <button class="menubtn" id="mNewOpp">New opponent<small>Back to the bar</small></button>
+  <button class="menubtn" id="mRoster">Roster of champions<small>Tap the screen to put it away</small></button>
+  <button class="menubtn" id="mAbout">About Shufflepuck Café<small>The game's own credits</small></button>
+
+  <h3>Paddle<small id="paddleNote" hidden>fixed in the tournament</small></h3>
+  <div class="group" id="gPaddle">
+    <div id="paddleSliders"></div>
+    <h3>Button up</h3><div id="upSliders"></div>
+    <h3>Button down<small>the mouse button held, or a second finger down</small></h3><div id="downSliders"></div>
+    <button class="menubtn" id="mPaddleDefault">Tournament paddle<small>Back to the standard paddle</small></button>
+  </div>
+
+  <h3>Blocker<small id="blockerNote" hidden>none in the tournament</small></h3>
+  <div class="group" id="gBlocker">
+    <div class="setting"><div class="lbl">A bar across the middle<small>It bounces the puck and slides when hit</small></div><div class="seg" id="segBlocker"><button data-v="0">None</button><button data-v="25">Small</button><button data-v="50">Medium</button><button data-v="75">Large</button></div></div>
+    <div id="blockerSliders"></div>
+  </div>
+
+  <div id="gDroid" hidden>
+    <h3>The droid<small>DC3 plays by these numbers</small></h3>
+    <div id="droidSliders"></div>
+  </div>
+
+  <h3>Settings</h3>
+  <div class="setting"><div class="lbl">Sound</div><div class="seg" id="segSound"><button data-v="on">On</button><button data-v="off">Off</button></div></div>
+  <div class="setting"><div class="lbl">Mouse<small>The paddle under the pointer, or the Mac's own mouse box with the pointer hidden during play</small></div><div class="seg" id="segMouse"><button data-v="pointer">Pointer</button><button data-v="mac">Mac</button></div></div>
+  <button class="menubtn" id="mFull">Full screen</button>
+
+  <h3>Playing</h3>
+  <p class="about">Pick an opponent at the bar, the sign on the wall for the tournament, or the robot behind the bar for practice. Push the puck to serve; hit it by moving the paddle through it — the faster the paddle, the harder the shot. Fifteen points wins.</p>
+  <p class="about">On a phone, drag anywhere on the screen to move the paddle; a second finger held down is the mouse button. Tap to choose and to carry on.</p>
+  <div class="keys">
+    <b>Any key</b> pauses · a click carries on<br>
+    <b>Ctrl/⌘-N</b> new game · <b>Ctrl/⌘-O</b> new opponent<br>
+    <b>Ctrl/⌘-R</b> roster · <b>Ctrl/⌘-S</b> sound · <b>Ctrl/⌘-Q</b> quit
+  </div>
+
+  <h3>About</h3>
+  <p class="about">Christopher Gross's <i>Shufflepuck Café</i> (Brøderbund, 1988), re-implemented in JavaScript from the 68000 program of the Macintosh release: the table and its physics, the nine opponents' reflexes from their own parameter tables, their serves and reactions, the chalk-hand scoreboard and the bar, drawn with a small QuickDraw from the game's own pictures, fonts and sounds. No emulator.</p>
+  <button class="menubtn danger" id="mQuit">Leave the café<small>Quit, as the door does</small></button>
+</aside>
+
+<div id="nameDlg" class="panel hidden"><div class="card"><h1>Your name, Champ?</h1><p>It goes on the sign over the bar and into the roster.</p><input id="nameInput" type="text" autocomplete="off" maxlength="31"><button id="nameOk" class="bigbtn primary">That's me</button></div></div>
+<div id="quit" class="panel hidden"><div class="card"><h1>Thanks for playing.</h1><p>The café is closed for the night.</p><button id="btnAgain" class="bigbtn primary">Open it again</button></div></div>
 <div id="err" class="hidden"></div>
 <script src="js/data.js?v=41273075"></script>
 <script src="js/qd.js?v=7a8c2956"></script>
@@ -62,6 +146,6 @@
 <script src="js/opponents.js?v=25186e20"></script>
 <script src="js/flow.js?v=dadd0719"></script>
 <script src="js/scenes.js?v=fbb37aba"></script>
-<script src="js/app.js?v=defa7e10"></script>
+<script src="js/app.js?v=30a9803c"></script>
 </body>
 </html>

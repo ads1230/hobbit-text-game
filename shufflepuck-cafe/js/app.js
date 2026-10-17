@@ -1,17 +1,22 @@
 // Shufflepuck Café — the page: runs the game program, presents the 512x342
 // screen on a canvas, feeds it mouse/touch/keyboard input, plays the sounds and
-// provides the menu bar and the option dialogs.
+// provides the menu (a drawer that pauses the game) with the game's options.
 'use strict';
 (function () {
-  var S = SPC.S, F = FLOW;
+  var S = SPC.S, F = FLOW, PIDX = SPC.PIDX;
   var canvas = document.getElementById('screen'), ctx = canvas.getContext('2d');
   var imgData = ctx.createImageData(512, 342);
   var $ = function (id) { return document.getElementById(id); };
 
+  // ------------------------------------------------------------ preferences of the page (not the game's own settings)
+  var prefs = { pointerPaddle: true, sound: 1 };
+  try { var pj = JSON.parse(localStorage.getItem('spc.prefs')); if (pj && typeof pj === 'object') { if ('pointerPaddle' in pj) prefs.pointerPaddle = !!pj.pointerPaddle; if ('sound' in pj) prefs.sound = pj.sound ? 1 : 0; } } catch (err) {}
+  function savePrefs() { try { localStorage.setItem('spc.prefs', JSON.stringify(prefs)); } catch (err) {} }
+  S.sound = prefs.sound;
 
   // ------------------------------------------------------------ audio (the Sound Driver's free-form synthesizer)
   var actx = null, buffers = {}, current = null, playing = false;
-  function audioInit() { if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } if (actx && actx.state === 'suspended') actx.resume(); }
+  function audioInit() { if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } if (actx && actx.state === 'suspended' && !paused) actx.resume(); }
   function samplesFor(id) {
     if (buffers[id]) return buffers[id];
     var b64 = SPC_DATA.sounds[id]; if (!b64 || !actx) return null;
@@ -42,29 +47,26 @@
   SPC.sfx.crackRate = function (r) { SPC.sfx.play('crack', r, 1); };                         // F5_0dba
 
   // ------------------------------------------------------------ input
-  var mouse = SPC.mouse;
+  // A mouse puts the paddle under the pointer ("Pointer" in the menu, the default). "Mac"
+  // is the game's own control: the paddle follows the mouse through the game's draggable
+  // box, one unit per pixel, and during a game the pointer is hidden, as the Mac hid its
+  // cursor, because the paddle is then the cursor. A finger steers the paddle by dragging
+  // anywhere on the screen: the drag moves the paddle by the same distance, so the hand
+  // never covers the play. A second finger held down anywhere is the mouse button (the
+  // "button down" paddle settings).
+  var mouse = SPC.mouse, app = $('app'), stage = $('stage');
+  var touches = 0, dragId = null, dragX = 0, dragY = 0, accX = 0, accY = 0, TOUCH_GAIN = 1.5, touched = false;
   function canvasPoint(e) {
     var r = canvas.getBoundingClientRect();
     return { x: Math.floor((e.clientX - r.left) * 512 / r.width), y: Math.floor((e.clientY - r.top) * 342 / r.height) };
   }
-  // A mouse puts the paddle under the pointer (the Paddle menu's "Under the Pointer", on by
-  // default). Without it the paddle follows the mouse as on the Mac — through the game's
-  // draggable box, one unit per pixel — and during a game the pointer is hidden, as the Mac
-  // hid its cursor, because the paddle is then the cursor.
-  // A finger steers it by dragging anywhere on the screen: the drag moves the paddle by
-  // the same distance, so the hand never covers the paddle. A second finger held down
-  // anywhere is the mouse button (the "button down" paddle settings).
-  var touches = 0, dragId = null, dragX = 0, dragY = 0, accX = 0, accY = 0, TOUCH_GAIN = 1.5;
-  var stage = $('stage');
-  var prefs = { pointerPaddle: true };
-  try { var pj = JSON.parse(localStorage.getItem('spc.prefs')); if (pj && typeof pj === 'object' && 'pointerPaddle' in pj) prefs.pointerPaddle = !!pj.pointerPaddle; } catch (err) {}
-  function savePrefs() { try { localStorage.setItem('spc.prefs', JSON.stringify(prefs)); } catch (err) {} }
   function onCanvas(e) { var r = canvas.getBoundingClientRect(); return e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom; }
   function nudge(dx, dy, k) {
     accX = Math.max(-2000, Math.min(2500, accX + dx * k)); accY = Math.max(-2000, Math.min(2300, accY + dy * k));
     mouse.x = Math.round(accX); mouse.y = Math.round(accY);
   }
   window.addEventListener('pointermove', function (e) {
+    if (paused) return;
     if (e.pointerType === 'touch') {
       if (e.pointerId === dragId) { var r = canvas.getBoundingClientRect(); nudge(e.clientX - dragX, e.clientY - dragY, 512 / r.width * TOUCH_GAIN); dragX = e.clientX; dragY = e.clientY; }
       return;
@@ -72,135 +74,69 @@
     mouse.direct = prefs.pointerPaddle;
     var p = canvasPoint(e); mouse.x = Math.max(0, Math.min(511, p.x)); mouse.y = Math.max(0, Math.min(341, p.y));
   });
-  stage.addEventListener('pointerdown', function (e) {
-    audioInit(); var p = canvasPoint(e), inside = onCanvas(e);
+  app.addEventListener('pointerdown', function (e) {
+    audioInit(); if (paused) return;
+    var p = canvasPoint(e), inside = onCanvas(e);
     if (e.pointerType === 'touch') {
+      if (!touched) { touched = true; layout(); }
       touches++; mouse.down = touches >= 2; mouse.direct = false;
       if (touches === 1) { dragId = e.pointerId; dragX = e.clientX; dragY = e.clientY; accX = mouse.x; accY = mouse.y; if (inside) F.pushEvent({ type: 'click', x: p.x, y: p.y }); }
     } else if (inside) { mouse.direct = prefs.pointerPaddle; mouse.x = p.x; mouse.y = p.y; mouse.down = true; F.pushEvent({ type: 'click', x: p.x, y: p.y }); }
-    try { stage.setPointerCapture(e.pointerId); } catch (err) {}
+    try { app.setPointerCapture(e.pointerId); } catch (err) {}
     e.preventDefault();
   });
-  // the cursor as the game shows it: hidden during the title and during play (unless the
-  // paddle is under the pointer), shown at the bar and between games
-  var cursorShown = null;
-  function updateCursor() {
-    var show = S.scene === 'bar' || (S.scene === 'table' && !S.running) || prefs.pointerPaddle;
-    if (show !== cursorShown) { cursorShown = show; stage.style.cursor = show ? '' : 'none'; canvas.style.cursor = show ? 'crosshair' : 'none'; }
-  }
   function up(e) {
     if (e.pointerType === 'touch') { touches = Math.max(0, touches - 1); mouse.down = touches >= 2; if (e.pointerId === dragId) dragId = null; }
     else mouse.down = false;
   }
-  stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
-  stage.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  app.addEventListener('pointerup', up); app.addEventListener('pointercancel', up);
+  app.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  window.addEventListener('blur', function () { touches = 0; dragId = null; mouse.down = false; });
   window.addEventListener('keydown', function (e) {
-    if (ui.modal) return;
+    if (modal || paused) { if (paused && e.key === 'Escape') closeDrawer(); return; }
     if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ' || e.key.length === 1) {
       if ((e.metaKey || e.ctrlKey) && e.key.length === 1) { F.pushEvent({ type: 'key', ch: e.key, cmd: true }); e.preventDefault(); }
       else if (!e.metaKey && !e.ctrlKey && !e.altKey) { F.pushEvent({ type: 'key', ch: e.key, cmd: false }); if (e.key === ' ') e.preventDefault(); }
     }
   });
+  // the cursor as the game shows it: hidden during the title and during play with the Mac
+  // control (the paddle is the cursor), shown at the bar and between games
+  var cursorShown = null;
+  function updateCursor() {
+    var show = S.scene === 'bar' || (S.scene === 'table' && !S.running) || prefs.pointerPaddle || paused;
+    if (show !== cursorShown) { cursorShown = show; app.style.cursor = show ? '' : 'none'; canvas.style.cursor = show ? 'crosshair' : 'none'; }
+  }
 
-  // ------------------------------------------------------------ menu bar
-  var MENUS = {
-    apple: { title: '', items: ['About Shufflepuck…'] },
-    file: { title: 'File', items: ['Roster of Champions', '-', 'Quit'] },
-    game: { title: 'Game', items: ['New Game', 'New Opponent', '-', 'Sound'] },
-    paddle: { title: 'Paddle', items: ['Size…', 'Button Up…', 'Button Down…', '-', 'Tournament Paddle', '-', 'Under the Pointer'] },
-    blocker: { title: 'Blocker', items: ['None', 'Small', 'Medium', 'Large', 'Custom…'] },
-    droid: { title: 'Droid', items: ['Paddle Size…', 'Paddle Power…', '-', 'Idle…', 'Speed…', 'Return…', 'Serve…'] }
-  };
-  var bar = $('menubar'), openMenu = null;
-  function buildMenus() {
-    bar.innerHTML = '';
-    Object.keys(MENUS).forEach(function (key) {
-      var m = MENUS[key], b = document.createElement('button'); b.className = 'mtitle'; b.dataset.menu = key;
-      b.textContent = key === 'apple' ? '\u2630' : m.title;
-      b.addEventListener('pointerdown', function (e) { e.preventDefault(); e.stopPropagation(); if (openMenu === key) closeMenus(); else showMenu(key, b); });
-      bar.appendChild(b);
-    });
-    var t = document.createElement('span'); t.className = 'title'; t.textContent = 'Shufflepuck Café'; bar.appendChild(t);
-  }
-  function showMenu(key, btn) {
-    closeMenus(); openMenu = key;
-    var m = MENUS[key], d = document.createElement('div'); d.className = 'menu'; d.id = 'dropdown';
-    d.addEventListener('pointerdown', function (e) { e.stopPropagation(); e.preventDefault(); });   // pressing inside keeps the menu open
-    m.items.forEach(function (it, i) {
-      var el = document.createElement('div');
-      if (it === '-') { el.className = 'sep'; d.appendChild(el); return; }
-      el.className = 'item'; el.textContent = it;
-      var st = itemState(key, i + 1);
-      if (st.checked) el.classList.add('checked'); if (st.disabled) el.classList.add('disabled');
-      el.addEventListener('pointerup', function (e) {
-        e.stopPropagation(); if (st.disabled) return; closeMenus();
-        if (key === 'paddle' && i + 1 === 7) { prefs.pointerPaddle = !prefs.pointerPaddle; savePrefs(); return; }   // a page option, not the game's
-        F.pushEvent({ type: 'menu', menu: key, item: i + 1 });
-      });
-      d.appendChild(el);
-    });
-    document.body.appendChild(d);
-    var r = btn.getBoundingClientRect(); d.style.left = r.left + 'px'; d.style.top = r.bottom + 'px';
-    btn.classList.add('open');
-  }
-  function closeMenus() { var d = $('dropdown'); if (d) d.remove(); openMenu = null; bar.querySelectorAll('.open').forEach(function (b) { b.classList.remove('open'); }); }
-  document.addEventListener('pointerdown', closeMenus);
-  function itemState(menu, item) {
-    var s = { checked: false, disabled: false };
-    if (menu === 'game' && item === 4) s.checked = !!S.sound;
-    if (menu === 'paddle' && item === 5) s.checked = SPC.paddleIsDefault();
-    if (menu === 'paddle' && S.tournament && item !== 7) s.disabled = true;
-    if (menu === 'paddle' && item === 7) s.checked = prefs.pointerPaddle;
-    if (menu === 'blocker') { var sel = !S.blockerOn ? 1 : S.bHw === 25 ? 2 : S.bHw === 50 ? 3 : S.bHw === 75 ? 4 : 5; s.checked = item === sel; if (S.tournament) s.disabled = true; }
-    if (menu === 'game' && (item === 1 || item === 2) && !S.opp) s.disabled = true;
-    return s;
-  }
-  var ui = SCENES.ui;
-  ui.menuEnable = function () { var d = bar.querySelector('[data-menu=droid]'); if (d) d.style.display = S.opp === 10 ? '' : 'none'; };
-  ui.modal = false;
-  F.onSoundChange = function () { $('btnSound').textContent = S.sound ? 'Sound: on' : 'Sound: off'; };
-
-  // ------------------------------------------------------------ dialogs (sliders) and the champion's name
-  ui.dialog = function* (title, sliders) {
-    var result;
-    var ov = $('dialog'); ov.classList.remove('hidden'); ui.modal = true;
-    $('dlgTitle').textContent = title;
-    var box = $('dlgSliders'); box.innerHTML = '';
-    var inputs = sliders.map(function (sl) {
-      var row = document.createElement('div'); row.className = 'slider';
-      var lab = document.createElement('label'); lab.textContent = sl[0]; row.appendChild(lab);
-      var inp = document.createElement('input'); inp.type = 'range'; inp.min = sl[2]; inp.max = sl[3]; inp.value = sl[1]; row.appendChild(inp);
-      var val = document.createElement('span'); val.className = 'val'; val.textContent = sl[1]; row.appendChild(val);
-      inp.addEventListener('input', function () { val.textContent = inp.value; });
-      box.appendChild(row); return inp;
-    });
-    $('dlgOk').onclick = function () { result = inputs.map(function (i) { return parseInt(i.value, 10); }); };
-    $('dlgCancel').onclick = function () { result = false; };
-    while (result === undefined) yield 0;
-    ov.classList.add('hidden'); ui.modal = false;
-    return result || null;
-  };
+  // ------------------------------------------------------------ the game's dialogs: the champion's name; the rest live in the drawer
+  var ui = SCENES.ui, modal = false;
+  ui.menuEnable = function () {};
+  ui.dialog = function* () { return null; };
   ui.nameEntry = function* () {
     var result;
-    var ov = $('nameDlg'); ov.classList.remove('hidden'); ui.modal = true;
-    var inp = $('nameInput'); inp.value = S.playerName === 'Visitor' ? '' : S.playerName; inp.maxLength = 31;
+    var ov = $('nameDlg'); ov.classList.remove('hidden'); modal = true;
+    var inp = $('nameInput'); inp.value = S.playerName === 'Visitor' ? '' : S.playerName;
     setTimeout(function () { inp.focus(); }, 50);
     $('nameOk').onclick = function () { result = inp.value.trim(); };
     inp.onkeydown = function (e) { if (e.key === 'Enter') { result = inp.value.trim(); e.preventDefault(); } };
     while (result === undefined) yield 0;
-    ov.classList.add('hidden'); ui.modal = false;
+    ov.classList.add('hidden'); modal = false; inp.blur();
     return result;
   };
-  ui.quit = function () { $('quit').classList.remove('hidden'); };
+  ui.quit = function () { $('quit').classList.remove('hidden'); $('corner').hidden = true; };
+  $('btnAgain').addEventListener('click', function () { location.reload(); });
+  F.onSoundChange = function () { prefs.sound = S.sound ? 1 : 0; savePrefs(); paintSegs(); };
 
-  // ------------------------------------------------------------ the runner
-  var t0 = performance.now(), lastStep = t0;
+  // ------------------------------------------------------------ the runner (a 60 Hz tick, like the Mac's TickCount)
+  var t0 = performance.now(), lastStep = t0, paused = false;
   function ticks() { return Math.floor((performance.now() - t0) * 60 / 1000); }
   F.setTicker(ticks); SCENES.setTicker(ticks);
-  var gen = SCENES.program(), wake = 0, lastLim = 0, waitLim = 0, finished = false;
+  var gen = SCENES.program(), wake = 0, lastLim = 0, waitLim = 0, finished = false, firstBar = false;
   function step() {
-    // after a stall (background tab, a long frame) the clock continues from where it stopped
-    var now = performance.now(); if (now - lastStep > 250) t0 += now - lastStep - 50; lastStep = now;
+    // after a stall (background tab, a long frame) or a pause the clock continues from where it stopped
+    var now = performance.now();
+    if (paused) { t0 += now - lastStep; lastStep = now; requestAnimationFrame(step); return; }
+    if (now - lastStep > 250) t0 += now - lastStep - 50;
+    lastStep = now;
     var t = ticks(), budget = 400;
     while (!finished && budget-- > 0) {
       if (waitLim) { if (t - lastLim < waitLim) break; lastLim = t; waitLim = 0; }
@@ -216,20 +152,125 @@
     }
     if (SPC.isDirty()) { QD.present(SPC.screen, ctx, imgData); SPC.setDirty(false); }
     updateCursor();
+    if (S.scene === 'bar' && !firstBar) { firstBar = true; toast(touched ? 'Tap someone at the bar to play them. Drag anywhere to move the paddle.' : 'Click someone at the bar to play them. The paddle follows the mouse.'); }
     requestAnimationFrame(step);
   }
-  // ------------------------------------------------------------ layout
+
+  // ------------------------------------------------------------ layout: the 512x342 screen scaled to fit; in portrait it sits at the top, the rest is for the thumb
   function layout() {
-    var vw = window.innerWidth, vh = window.innerHeight - bar.offsetHeight - $('toolbar').offsetHeight;
-    var sc = Math.min(vw / 512, vh / 342);
-    if (sc > 1 && !document.fullscreenElement) sc = Math.max(1, Math.floor(sc * 2) / 2);
-    canvas.style.width = Math.floor(512 * sc) + 'px'; canvas.style.height = Math.floor(342 * sc) + 'px';
+    var W = window.innerWidth, H = window.innerHeight, portrait = H > W * 0.9;
+    app.classList.toggle('portrait', portrait); app.classList.toggle('landscape', !portrait);
+    var availW = W - 8, availH = portrait ? H - 60 : H - 8;
+    var sc = Math.min(availW / 512, availH / 342);
+    if (sc > 1 && !document.fullscreenElement) sc = Math.max(1, Math.floor(sc * 4) / 4);
+    stage.style.width = Math.floor(512 * sc) + 'px'; stage.style.height = Math.floor(342 * sc) + 'px';
+    $('hint').textContent = portrait && touched ? 'drag anywhere to move the paddle · a second finger is the button' : '';
   }
   window.addEventListener('resize', layout);
-  $('btnFull').addEventListener('click', function () { var el = document.documentElement; if (document.fullscreenElement) document.exitFullscreen(); else if (el.requestFullscreen) el.requestFullscreen(); setTimeout(layout, 300); });
-  $('btnKey').addEventListener('click', function () { F.pushEvent({ type: 'key', ch: ' ', cmd: false }); });
-  $('btnSound').addEventListener('click', function () { audioInit(); F.toggleSound(); });
-  buildMenus(); ui.menuEnable(); layout(); F.onSoundChange();
+  document.addEventListener('fullscreenchange', function () { setTimeout(layout, 100); });
+
+  // ------------------------------------------------------------ toast and the drawer (the game stands still while it is open)
+  var toastTimer = 0;
+  function toast(text) { var t = $('toast'); t.textContent = text; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove('show'); }, 3200); }
+  var drawer = $('drawer'), scrim = $('scrim');
+  function openDrawer() {
+    if (paused) return;
+    paused = true; touches = 0; dragId = null; mouse.down = false;
+    if (actx) actx.suspend();
+    readSettings(); updateCursor();
+    drawer.classList.add('open'); scrim.classList.add('open');
+  }
+  function closeDrawer() {
+    if (!paused) return;
+    drawer.classList.remove('open'); scrim.classList.remove('open');
+    paused = false; lastStep = performance.now();
+    if (actx && actx.state === 'suspended') actx.resume();
+  }
+  $('btnMenu').addEventListener('click', function () { audioInit(); openDrawer(); });
+  $('btnClose').addEventListener('click', closeDrawer); scrim.addEventListener('click', closeDrawer); $('mResume').addEventListener('click', closeDrawer);
+  function sendAndClose(menu, item) { closeDrawer(); F.pushEvent({ type: 'menu', menu: menu, item: item }); }
+  $('mNewGame').addEventListener('click', function () { sendAndClose('game', 1); });
+  $('mNewOpp').addEventListener('click', function () { sendAndClose('game', 2); });
+  $('mRoster').addEventListener('click', function () { sendAndClose('file', 1); });
+  $('mAbout').addEventListener('click', function () { sendAndClose('apple', 1); });
+  $('mQuit').addEventListener('click', function () { sendAndClose('file', 3); });
+  $('mPaddleDefault').addEventListener('click', function () { SPC.paddleDefaults(); readSettings(); toast('The tournament paddle'); });
+  $('mFull').addEventListener('click', function () { var el = document.documentElement; if (document.fullscreenElement) document.exitFullscreen(); else if (el.requestFullscreen) el.requestFullscreen(); closeDrawer(); });
+
+  // sliders: [label, min, max, get, set]
+  function sliders(hostId, defs) {
+    var host = $(hostId); host.innerHTML = '';
+    return defs.map(function (d) {
+      var row = document.createElement('div'); row.className = 'setting';
+      var lab = document.createElement('div'); lab.className = 'lbl'; lab.textContent = d[0]; row.appendChild(lab);
+      var inp = document.createElement('input'); inp.type = 'range'; inp.min = d[1]; inp.max = d[2]; row.appendChild(inp);
+      var val = document.createElement('span'); val.className = 'val'; row.appendChild(val);
+      inp.addEventListener('input', function () { val.textContent = inp.value; d[4](parseInt(inp.value, 10)); });
+      host.appendChild(row);
+      return function () { var v = d[3](); inp.value = v; val.textContent = v; };
+    });
+  }
+  var hitDefs = function (arr) {
+    return [['Sideways bounce', 0, 100, function () { return arr()[0]; }, function (v) { arr()[0] = v; }],
+            ['Forward bounce', 0, 100, function () { return arr()[1]; }, function (v) { arr()[1] = v; }],
+            ['Sideways power', 0, 200, function () { return arr()[2]; }, function (v) { arr()[2] = v; }],
+            ['Forward power', 0, 200, function () { return arr()[3]; }, function (v) { arr()[3] = v; }]];
+  };
+  var P = function () { return S.P; };
+  var readers = [].concat(
+    sliders('paddleSliders', [['Size', 3, 100, function () { return SPC.rdiv(S.plHw * 2, 5); }, function (v) { S.plHw = SPC.tdiv(v * 5, 2); SPC.resetBox(); }]]),
+    sliders('upSliders', hitDefs(function () { return S.hitUp; })),
+    sliders('downSliders', hitDefs(function () { return S.hitDown; })),
+    sliders('blockerSliders', [
+      ['Size', 0, 75, function () { return S.bHw; }, function (v) { S.bHw = v; S.blockerOn = v ? 1 : 0; if (v) SPC.buildBlocker(); paintSegs(); }],
+      ['Weight', 1, 10, function () { return S.bWeight; }, function (v) { S.bWeight = v; }]]),
+    sliders('droidSliders', [
+      ['Paddle size', 3, 40, function () { return SPC.rdiv(P()[PIDX.hw] * 2, 5); }, function (v) { P()[PIDX.hw] = SPC.tdiv(v * 5, 2); SPC.buildOppSprites(); }],
+      ['Sideways bounce', 0, 100, function () { return P()[0]; }, function (v) { P()[0] = v; }],
+      ['Forward bounce', 0, 100, function () { return P()[1]; }, function (v) { P()[1] = v; }],
+      ['Sideways power', 0, 200, function () { return P()[2]; }, function (v) { P()[2] = v; }],
+      ['Forward power', 0, 200, function () { return P()[3]; }, function (v) { P()[3] = v; }],
+      ['Idle: left-right range', 0, 250, function () { return P()[PIDX.idleXMax]; }, function (v) { P()[PIDX.idleXMax] = v; P()[PIDX.idleXMin] = -v; }],
+      ['Idle: left-right speed', 0, 100, function () { return P()[PIDX.idleVxMax]; }, function (v) { P()[PIDX.idleVxMax] = v; P()[PIDX.idleVxMin] = v; }],
+      ['Idle: front-rear range', 0, 150, function () { return 150 - P()[PIDX.idleZ2]; }, function (v) { P()[PIDX.idleZ1] = v + 150; P()[PIDX.idleZ2] = 150 - v; }],
+      ['Idle: front-rear speed', 0, 100, function () { return P()[PIDX.idleVzMax]; }, function (v) { P()[PIDX.idleVzMax] = v; P()[PIDX.idleVzMin] = v; }],
+      ['Block speed', 1, 200, function () { return P()[PIDX.retVxMax]; }, function (v) { var p = P(); p[PIDX.retVxMax] = p[PIDX.retVxMin] = p[PIDX.retVzMin] = p[PIDX.retVzMax] = v; }],
+      ['Backswing speed', 1, 200, function () { return P()[PIDX.blkVx]; }, function (v) { P()[PIDX.blkVx] = P()[PIDX.blkVz] = v; }],
+      ['Return: left-right min', -300, 300, function () { return P()[PIDX.bsXmin]; }, function (v) { P()[PIDX.bsXmin] = Math.min(v, P()[PIDX.bsXmax]); }],
+      ['Return: left-right max', -300, 300, function () { return P()[PIDX.bsXmax]; }, function (v) { P()[PIDX.bsXmax] = Math.max(v, P()[PIDX.bsXmin]); }],
+      ['Return: front-back min', 0, 300, function () { return P()[PIDX.bsZmin]; }, function (v) { P()[PIDX.bsZmin] = Math.min(v, P()[PIDX.bsZmax]); }],
+      ['Return: front-back max', 0, 300, function () { return P()[PIDX.bsZmax]; }, function (v) { P()[PIDX.bsZmax] = Math.max(v, P()[PIDX.bsZmin]); }],
+      ['Serve: left-right min', -300, 300, function () { return P()[PIDX.srvX2]; }, function (v) { P()[PIDX.srvX2] = Math.min(v, P()[PIDX.srvX1]); }],
+      ['Serve: left-right max', -300, 300, function () { return P()[PIDX.srvX1]; }, function (v) { P()[PIDX.srvX1] = Math.max(v, P()[PIDX.srvX2]); }],
+      ['Serve: front-back min', 0, 300, function () { return P()[PIDX.srvZ2]; }, function (v) { P()[PIDX.srvZ2] = Math.min(v, P()[PIDX.srvZ1]); }],
+      ['Serve: front-back max', 0, 300, function () { return P()[PIDX.srvZ1]; }, function (v) { P()[PIDX.srvZ1] = Math.max(v, P()[PIDX.srvZ2]); }]]));
+  // segmented controls
+  var segs = [];
+  function seg(id, get, set) {
+    var el = $(id);
+    function paint() { Array.prototype.forEach.call(el.querySelectorAll('button'), function (b) { b.setAttribute('aria-pressed', b.dataset.v === String(get()) ? 'true' : 'false'); }); }
+    el.addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; set(b.dataset.v); paint(); });
+    segs.push(paint);
+  }
+  function paintSegs() { segs.forEach(function (p) { p(); }); }
+  seg('segSound', function () { return S.sound ? 'on' : 'off'; }, function (v) { if ((v === 'on') !== !!S.sound) F.toggleSound(); });
+  seg('segMouse', function () { return prefs.pointerPaddle ? 'pointer' : 'mac'; }, function (v) { prefs.pointerPaddle = v === 'pointer'; savePrefs(); });
+  seg('segBlocker', function () { return S.blockerOn ? ([25, 50, 75].indexOf(S.bHw) >= 0 ? S.bHw : 'custom') : 0; },
+      function (v) { var hw = parseInt(v, 10); S.bHw = hw; S.blockerOn = hw ? 1 : 0; S.bWeight = 5; if (hw) SPC.buildBlocker(); readers.forEach(function (r) { r(); }); });
+  function readSettings() {
+    readers.forEach(function (r) { r(); }); paintSegs();
+    var t = !!S.tournament;
+    $('gPaddle').classList.toggle('off', t); $('gBlocker').classList.toggle('off', t);
+    $('paddleNote').hidden = !t; $('blockerNote').hidden = !t;
+    $('gDroid').hidden = S.opp !== 10;
+    var atTable = S.scene === 'table';
+    $('mNewGame').disabled = !atTable; $('mNewOpp').disabled = !atTable;
+    $('mFull').textContent = document.fullscreenElement ? 'Leave full screen' : 'Full screen';
+    $('mFull').hidden = !document.documentElement.requestFullscreen;
+  }
+  document.addEventListener('visibilitychange', function () { if (document.hidden && actx) actx.suspend(); else if (!document.hidden && actx && !paused) actx.resume(); });
+
+  layout(); paintSegs();
   requestAnimationFrame(step);
-  window.__spc = { S: S, F: F, SPC: SPC, SCENES: SCENES };
+  window.__spc = { S: S, F: F, SPC: SPC, SCENES: SCENES, prefs: prefs, openDrawer: openDrawer, closeDrawer: closeDrawer };
 })();

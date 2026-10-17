@@ -14,9 +14,22 @@ Open `index.html` (or the single file `shufflepuck.html`, which stands on its
 own and can be opened from disk). After the title, the café: click or tap an
 opponent at the bar to play them, the *Tournament* sign on the wall to take
 on all eight in order, the robot behind the bar for a practice droid whose
-play can be adjusted from a menu, or the door to leave. A game is to fifteen
-points. Beat the whole tournament and your name goes on the sign over the bar
-and into the roster of champions, which the browser keeps.
+play can be adjusted from the menu, or the door to leave. A game is to
+fifteen points. Beat the whole tournament and your name goes on the sign over
+the bar and into the roster of champions, which the browser keeps.
+
+The page is one screen — the table, scaled to fit, on a phone or a desktop —
+with a single ☰ button that opens the menu. The game stands still while the
+menu is open. It holds the game's own commands and settings: *New game*
+(the board is wiped), *New opponent* (back to the bar), the *Roster of
+champions*, *About* (the game's credits, with the flickering neon sign); the
+*Paddle* (its size and the two sets of bounce and power, and the tournament
+paddle to put them back); the *Blocker* (an optional bar across the middle
+of the table that bounces the puck and slides when hit — none, small, medium
+or large, or any size and weight); the *Droid*'s numbers while playing DC3
+(its paddle, idling, speed, returns and serves); sound; the mouse control;
+full screen; and the door. Paddle and blocker settings are fixed in the
+tournament, as on the Mac.
 
 ## Controls
 
@@ -25,36 +38,30 @@ forward and back along it. The puck is hit by moving the paddle through it —
 the faster the paddle, the harder the shot, and sideways movement puts
 sideways speed on the puck. Holding the mouse button while hitting uses the
 *Button Down* paddle settings (a little more forward power by default); both
-sets can be changed from the *Paddle* menu. To serve, push the puck.
+sets can be changed from the menu. To serve, push the puck.
 
-*Under the Pointer* in the *Paddle* menu switches between that and the Mac's
-own control: there the paddle moves one table unit per pixel of mouse travel
-through a box that follows the mouse (so the table's depth takes three
-hundred pixels of travel rather than a hundred, and shots want a longer
-swing), and, as on the Mac, the pointer is hidden during play — the paddle is
-the cursor — and comes back at the bar and whenever the game is paused.
+The *Mouse* setting switches between that and the Mac's own control: there
+the paddle moves one table unit per pixel of mouse travel through a box that
+follows the mouse (so the table's depth takes three hundred pixels of travel
+rather than a hundred, and shots want a longer swing), and, as on the Mac,
+the pointer is hidden during play — the paddle is the cursor — and comes
+back at the bar and whenever the game is paused.
 
 On a phone, drag anywhere on the screen (including the black area around the
-table): the paddle moves with the finger, a little faster, so the hand never
+table — in portrait the table sits at the top and the rest is for the
+thumb): the paddle moves with the finger, a little faster, so the hand never
 covers the play. A second finger held down anywhere is the mouse button. Taps
-are clicks, for the bar and the menus.
+are clicks, for the bar and for carrying on.
 
 | Key | Does |
 | --- | --- |
-| any key | pause (the game stops; a click, a key or *Pause / Resume* carries on) |
+| any key | pause (the game stops; a click or a key carries on) |
 | `Ctrl`/`⌘`+`N` | new game (the board is wiped) |
 | `Ctrl`/`⌘`+`O` | new opponent (back to the bar) |
 | `Ctrl`/`⌘`+`R` | the roster of champions |
 | `Ctrl`/`⌘`+`S` | sound on or off |
 | `Ctrl`/`⌘`+`Q` | quit |
-
-The menu bar is the game's: *About* (the credits, with the flickering neon
-sign), *File* (roster, quit), *Game* (new game, new opponent, sound),
-*Paddle* (size, the two sets of bounce and power, the tournament paddle),
-*Blocker* (an optional bar across the middle of the table that bounces the
-puck and slides when hit — small, medium, large or custom size and weight),
-and *Droid* while playing DC3 (its paddle, idling, speed, returns and serves).
-Paddle and blocker settings are fixed in the tournament.
+| `Esc` | closes the menu |
 
 ## The opponents
 
@@ -82,7 +89,7 @@ sounds and quirks:
 - **Biff Raunch**, the champion: the strongest hitter, who aims his serves by
   the score.
 - **DC3**, the droid behind the bar: not in the tournament; its numbers are
-  the *Droid* menu, for practice.
+  the menu's *Droid* section, for practice.
 
 ## How it was made
 
@@ -138,14 +145,14 @@ compared frame by frame against the original running in an emulator.
 
 | File | What it is |
 | --- | --- |
-| `index.html` | the page: markup, styles, the menu bar and dialogs |
+| `index.html` | the page: markup, styles, the menu drawer and the name dialog |
 | `shufflepuck.html` | the same with everything inlined (made by `build.py`) |
 | `js/qd.js` | the QuickDraw subset: bitmaps, ports, patterns, pens, `CopyBits`, PICT decoding, fonts |
 | `js/engine.js` | the world: globals, projection, sprites, paddles, puck physics, collisions, the AI, rendering, the scoreboard |
 | `js/opponents.js` | the nine opponents: pictures, sounds, face frames and eyes |
 | `js/flow.js` | the game: serving, the rally, scoring, reactions, blinks, the chalk hand, the fades |
 | `js/scenes.js` | around the game: title, bar, roster, menus, dialogs, the about box, the main program |
-| `js/app.js` | the page: Web Audio, mouse/touch/keyboard, the HTML menu bar and dialogs, the runner |
+| `js/app.js` | the page: Web Audio, mouse/touch/keyboard, the menu drawer with the game's settings, the runner |
 | `js/data.js` | the game's own pictures, sounds, fonts, patterns and tables (made by `tools/build_data.py`) |
 | `tools/extract.py` | takes the program's forks out of the disk image (StuffIt or Disk Copy 4.2) and dumps its resources |
 | `tools/rsrc.py` | the resource-fork reader |
