@@ -47,33 +47,54 @@
     var r = canvas.getBoundingClientRect();
     return { x: Math.floor((e.clientX - r.left) * 512 / r.width), y: Math.floor((e.clientY - r.top) * 342 / r.height) };
   }
-  // A mouse positions the paddle directly, as on the Mac (the paddle's box follows the
-  // pointer). A finger steers it by dragging anywhere on the screen: the drag moves the
-  // paddle by the same distance, so the hand never covers the paddle. A second finger
-  // held down anywhere is the mouse button (the "button down" paddle settings).
+  // A mouse positions the paddle as on the Mac: the paddle's box follows the pointer, and
+  // during a game the pointer itself is hidden and locked to the page (the paddle is the
+  // cursor), so a fast swing cannot run off the table into the browser. A finger steers
+  // it by dragging anywhere on the screen: the drag moves the paddle by the same distance,
+  // so the hand never covers the paddle. A second finger held down anywhere is the mouse
+  // button (the "button down" paddle settings).
   var touches = 0, dragId = null, dragX = 0, dragY = 0, accX = 0, accY = 0, TOUCH_GAIN = 1.5;
-  var stage = $('stage');
+  var stage = $('stage'), locked = false;
   function onCanvas(e) { var r = canvas.getBoundingClientRect(); return e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom; }
-  stage.addEventListener('pointermove', function (e) {
+  function nudge(dx, dy, k) {
+    accX = Math.max(-2000, Math.min(2500, accX + dx * k)); accY = Math.max(-2000, Math.min(2300, accY + dy * k));
+    mouse.x = Math.round(accX); mouse.y = Math.round(accY);
+  }
+  window.addEventListener('pointermove', function (e) {
+    var r = canvas.getBoundingClientRect();
     if (e.pointerType === 'touch') {
-      if (e.pointerId !== dragId) return;
-      var r = canvas.getBoundingClientRect(), k = 512 / r.width * TOUCH_GAIN;
-      accX = Math.max(-2000, Math.min(2500, accX + (e.clientX - dragX) * k)); accY = Math.max(-2000, Math.min(2300, accY + (e.clientY - dragY) * k));
-      dragX = e.clientX; dragY = e.clientY;
-      mouse.x = Math.round(accX); mouse.y = Math.round(accY);
+      if (e.pointerId === dragId) { nudge(e.clientX - dragX, e.clientY - dragY, 512 / r.width * TOUCH_GAIN); dragX = e.clientX; dragY = e.clientY; }
       return;
     }
+    if (locked) { nudge(e.movementX || 0, e.movementY || 0, 512 / r.width); return; }
     var p = canvasPoint(e); mouse.x = Math.max(0, Math.min(511, p.x)); mouse.y = Math.max(0, Math.min(341, p.y));
   });
+  document.addEventListener('pointerlockchange', function () { locked = document.pointerLockElement === stage; if (locked) { accX = mouse.x; accY = mouse.y; } });
+  function lockPointer() {
+    if (locked || !stage.requestPointerLock) return;
+    try { var pr = stage.requestPointerLock(); if (pr && pr.catch) pr.catch(function () {}); } catch (err) {}
+  }
+  function unlockPointer() { if (locked && document.exitPointerLock) { try { document.exitPointerLock(); } catch (err) {} } }
   stage.addEventListener('pointerdown', function (e) {
     audioInit(); var p = canvasPoint(e), inside = onCanvas(e);
     if (e.pointerType === 'touch') {
       touches++; mouse.down = touches >= 2;
       if (touches === 1) { dragId = e.pointerId; dragX = e.clientX; dragY = e.clientY; accX = mouse.x; accY = mouse.y; if (inside) F.pushEvent({ type: 'click', x: p.x, y: p.y }); }
-    } else if (inside) { mouse.x = p.x; mouse.y = p.y; mouse.down = true; F.pushEvent({ type: 'click', x: p.x, y: p.y }); }
+    } else if (inside) {
+      if (!locked) { mouse.x = p.x; mouse.y = p.y; }
+      mouse.down = true; F.pushEvent({ type: 'click', x: p.x, y: p.y });
+      if (S.scene === 'table') lockPointer();          // the click starts (or continues) a game
+    }
     try { stage.setPointerCapture(e.pointerId); } catch (err) {}
     e.preventDefault();
   });
+  // the cursor as the game shows it: hidden during the title and during play, shown at the bar and between games
+  var cursorShown = null;
+  function updateCursor() {
+    var show = S.scene === 'bar' || (S.scene === 'table' && !S.running);
+    if (show !== cursorShown) { cursorShown = show; stage.style.cursor = show ? '' : 'none'; canvas.style.cursor = show ? 'crosshair' : 'none'; }
+    if (show && locked) unlockPointer();
+  }
   function up(e) {
     if (e.pointerType === 'touch') { touches = Math.max(0, touches - 1); mouse.down = touches >= 2; if (e.pointerId === dragId) dragId = null; }
     else mouse.down = false;
@@ -196,6 +217,7 @@
       t = ticks();
     }
     if (SPC.isDirty()) { QD.present(SPC.screen, ctx, imgData); SPC.setDirty(false); }
+    updateCursor();
     requestAnimationFrame(step);
   }
   // ------------------------------------------------------------ layout
