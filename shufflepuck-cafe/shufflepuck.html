@@ -2126,7 +2126,7 @@ var SCENES = (function () {
   var ui = SCENES.ui;
   ui.menuEnable = function () { var d = bar.querySelector('[data-menu=droid]'); if (d) d.style.display = S.opp === 10 ? '' : 'none'; };
   ui.modal = false;
-  F.onSoundChange = function () {};
+  F.onSoundChange = function () { $('btnSound').textContent = S.sound ? 'Sound: on' : 'Sound: off'; };
 
   // ------------------------------------------------------------ dialogs (sliders) and the champion's name
   ui.dialog = function* (title, sliders) {
@@ -2196,7 +2196,7 @@ var SCENES = (function () {
   $('btnFull').addEventListener('click', function () { var el = document.documentElement; if (document.fullscreenElement) document.exitFullscreen(); else if (el.requestFullscreen) el.requestFullscreen(); setTimeout(layout, 300); });
   $('btnKey').addEventListener('click', function () { F.pushEvent({ type: 'key', ch: ' ', cmd: false }); });
   $('btnSound').addEventListener('click', function () { audioInit(); F.toggleSound(); });
-  buildMenus(); ui.menuEnable(); layout();
+  buildMenus(); ui.menuEnable(); layout(); F.onSoundChange();
   requestAnimationFrame(step);
   window.__spc = { S: S, F: F, SPC: SPC, SCENES: SCENES };
 })();
